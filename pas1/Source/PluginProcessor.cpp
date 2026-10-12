@@ -354,8 +354,6 @@ public:
         }
         constexpr std::array<float, 5> quarterNotesPerCycle{4.0f, 2.0f, 1.0f, 0.5f, 0.25f};
 
-        const auto activeVoices = std::max(1, static_cast<int>(std::round(polyphony_->load())));
-        const auto voiceHeadroom = 1.0f / std::sqrt(static_cast<float>(activeVoices));
         const auto sampleRate = getSampleRate();
 
         for (int sample = 0; sample < numSamples; ++sample) {
@@ -522,8 +520,7 @@ public:
                 const auto drive = 1.0f + std::clamp(filterDrive, 0.0f, 1.0f) * 9.0f;
                 signal = std::tanh(signal * drive) / std::tanh(drive);
             }
-            auto value = filter_.processSample(signal) * amplitudeEnvelopeValue
-                         * velocity_ * voiceHeadroom;
+            auto value = filter_.processSample(signal) * amplitudeEnvelopeValue * velocity_;
             if (!std::isfinite(value))
                 value = 0.0f;
 
@@ -655,13 +652,14 @@ public:
         currentMode_ = mode;
     }
 
-    void renderBlock(juce::AudioBuffer<float>& output,
-                     const juce::MidiBuffer& midi,
-                     int startSample,
-                     int numSamples) {
+    int renderBlock(juce::AudioBuffer<float>& output,
+                    const juce::MidiBuffer& midi,
+                    int startSample,
+                    int numSamples) {
         // Keep event dispatch on the audio thread without JUCE Synthesiser's internal lock.
         const auto blockEnd = startSample + numSamples;
         auto cursor = startSample;
+        auto maximumActiveVoiceCount = getActiveVoiceCount();
         auto event = midi.findNextSamplePosition(startSample);
 
         for (; event != midi.cend(); ++event) {
@@ -671,15 +669,39 @@ public:
                 break;
 
             const auto renderEnd = std::clamp(eventSample, cursor, blockEnd);
-            if (renderEnd > cursor)
+            if (renderEnd > cursor) {
+                maximumActiveVoiceCount =
+                    std::max(maximumActiveVoiceCount, getActiveVoiceCount());
                 renderVoices(output, cursor, renderEnd - cursor);
+                maximumActiveVoiceCount =
+                    std::max(maximumActiveVoiceCount, getActiveVoiceCount());
+            }
 
             handleMidiEvent(metadata.getMessage());
+            maximumActiveVoiceCount =
+                std::max(maximumActiveVoiceCount, getActiveVoiceCount());
             cursor = renderEnd;
         }
 
-        if (cursor < blockEnd)
+        if (cursor < blockEnd) {
+            maximumActiveVoiceCount =
+                std::max(maximumActiveVoiceCount, getActiveVoiceCount());
             renderVoices(output, cursor, blockEnd - cursor);
+            maximumActiveVoiceCount =
+                std::max(maximumActiveVoiceCount, getActiveVoiceCount());
+        }
+
+        return maximumActiveVoiceCount;
+    }
+
+    int getActiveVoiceCount() const noexcept {
+        auto activeVoices = 0;
+        for (int index = 0; index < getNumVoices(); ++index) {
+            const auto* voice = getVoice(index);
+            if (voice != nullptr && voice->isVoiceActive())
+                ++activeVoices;
+        }
+        return activeVoices;
     }
 
     void handleMidiEvent(const juce::MidiMessage& message) override {
@@ -1389,7 +1411,16 @@ void Pas1AudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
     }
     modulationAccumulator.reset();
     updateMorphValues(samples);
-    pas1Synthesiser->renderBlock(buffer, midi, 0, samples);
+    const auto activeVoiceCount =
+        std::max(1, pas1Synthesiser->renderBlock(buffer, midi, 0, samples));
+    // Only reserve headroom for notes that actually overlap this block. The polyphony
+    // setting is a capacity limit and must not attenuate a lone note by default.
+    const auto polyphonyHeadroom = 1.0f / std::sqrt(static_cast<float>(activeVoiceCount));
+    for (int channel = 0; channel < buffer.getNumChannels(); ++channel) {
+        auto* channelData = buffer.getWritePointer(channel);
+        for (int sample = 0; sample < samples; ++sample)
+            channelData[sample] *= polyphonyHeadroom;
+    }
     const auto blockModulation = modulationAccumulator.average();
     modulationMorphX =
         blockModulation[static_cast<std::size_t>(pas1::dsp::ModulationDestination::morphX)] * 0.5f;
