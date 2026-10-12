@@ -1,18 +1,3 @@
-Значит, GitHub, вероятно, не загрузил скрытую папку `.github` — на Android это бывает. Её можно создать прямо на GitHub.
-
-Сначала на вкладке **Code** проверь, что в корне репозитория есть папка **`pas1`**. Внутри неё должны быть `CMakeLists.txt`, `Source` и `Tests`. Если папки `pas1` нет, остановись: файлы загружены не в той структуре.
-
-Если `pas1` на месте:
-
-1. На странице репозитория нажми **“creating a new file”** — эта ссылка находится в блоке **Quick setup**.
-2. В поле имени файла введи точно:
-   `.github/workflows/pas1-build.yml`
-   
-   GitHub создаст недостающие папки сам.
-3. Вставь содержимое workflow из блока ниже.
-4. Нажми **Commit changes** и подтверди коммит. После этого открой **Actions** — workflow должен появиться и запуститься.
-
-```yaml
 name: PAS 1 build
 
 on:
@@ -75,4 +60,3 @@ jobs:
             pas1/build/PAS1_artefacts/VST3/
             pas1/build/PAS1_artefacts/Standalone/
           if-no-files-found: error
-```
