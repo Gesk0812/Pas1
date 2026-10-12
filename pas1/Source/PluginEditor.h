@@ -7,6 +7,7 @@
 #include "Generation/ModulationPanel.h"
 #include "Generation/SoundDNAPanel.h"
 #include "PluginProcessor.h"
+#include "UI/Utf8Text.h"
 #include "Presets/PresetsPanel.h"
 #include "UI/ParameterPage.h"
 #include "UI/ParameterGraphs.h"
@@ -56,22 +57,22 @@ private:
 
     Pas1AudioProcessor& processor_;
     std::unique_ptr<juce::GenericAudioProcessorEditor> engineEditor;
-    juce::TextButton homeButton{"ГЛАВНАЯ"};
-    juce::TextButton oscillatorButton{"ОСЦ."};
-    juce::TextButton ancientButton{"ДРЕВНИЕ"};
-    juce::TextButton filterButton{"ФИЛЬТР"};
-    juce::TextButton effectsButton{"ЭФФЕКТЫ"};
-    juce::TextButton settingsButton{"НАСТР."};
-    juce::TextButton engineButton{"ПАРАМЕТРЫ"};
-    juce::TextButton presetButton{"ПРЕСЕТЫ"};
-    juce::TextButton savePresetButton{"СОХРАНИТЬ"};
-    juce::TextButton generatorButton{"ГЕНЕРАТОР"};
-    juce::TextButton morphButton{"МОРФИНГ"};
-    juce::TextButton soundDNAButton{"ДНК ЗВУКА"};
-    juce::TextButton modulationButton{"МОДУЛЯЦИЯ"};
-    juce::TextButton resetDefaultsButton{"СБРОС"};
-    juce::TextButton storeSnapshotAButton{"СОХР. A"};
-    juce::TextButton storeSnapshotBButton{"СОХР. B"};
+    juce::TextButton homeButton{pas1::ui::utf8String("ГЛАВНАЯ")};
+    juce::TextButton oscillatorButton{pas1::ui::utf8String("ОСЦ.")};
+    juce::TextButton ancientButton{pas1::ui::utf8String("ДРЕВНИЕ")};
+    juce::TextButton filterButton{pas1::ui::utf8String("ФИЛЬТР")};
+    juce::TextButton effectsButton{pas1::ui::utf8String("ЭФФЕКТЫ")};
+    juce::TextButton settingsButton{pas1::ui::utf8String("НАСТР.")};
+    juce::TextButton engineButton{pas1::ui::utf8String("ПАРАМЕТРЫ")};
+    juce::TextButton presetButton{pas1::ui::utf8String("ПРЕСЕТЫ")};
+    juce::TextButton savePresetButton{pas1::ui::utf8String("СОХРАНИТЬ")};
+    juce::TextButton generatorButton{pas1::ui::utf8String("ГЕНЕРАТОР")};
+    juce::TextButton morphButton{pas1::ui::utf8String("МОРФИНГ")};
+    juce::TextButton soundDNAButton{pas1::ui::utf8String("ДНК ЗВУКА")};
+    juce::TextButton modulationButton{pas1::ui::utf8String("МОДУЛЯЦИЯ")};
+    juce::TextButton resetDefaultsButton{pas1::ui::utf8String("СБРОС")};
+    juce::TextButton storeSnapshotAButton{pas1::ui::utf8String("СОХР. A")};
+    juce::TextButton storeSnapshotBButton{pas1::ui::utf8String("СОХР. B")};
     juce::TextButton compareSnapshotsButton{"A/B"};
     Page currentPage = Page::home;
     bool uiReady = false;
@@ -108,7 +109,7 @@ private:
     juce::Slider master;
     juce::Slider voices;
     juce::ComboBox voiceMode;
-    juce::ToggleButton glideEnabled{"ГЛИССАНДО"};
+    juce::ToggleButton glideEnabled{pas1::ui::utf8String("ГЛИССАНДО")};
     juce::Slider glideTime;
     juce::Label attackLabel;
     juce::Label decayLabel;

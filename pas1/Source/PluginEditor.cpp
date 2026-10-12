@@ -74,29 +74,29 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     startTimerHz(30);
     tooltipWindow = std::make_unique<juce::TooltipWindow>(this, 700);
 
-    presetButton.setTooltip("Открывает заводские и пользовательские пресеты.");
-    homeButton.setTooltip("Возвращает на главную страницу управления звуком.");
-    oscillatorButton.setTooltip("Настройка осцилляторов, унисона, ЧМ и шума.");
-    filterButton.setTooltip("Настройка фильтра и амплитудной/фильтровой огибающих.");
-    effectsButton.setTooltip("Настройка искажений, модуляции, задержки, реверберации и эквалайзера.");
-    settingsButton.setTooltip("Настройка голосов, выходного сигнала и сброс параметров.");
-    resetDefaultsButton.setTooltip("Сбрасывает параметры к заводским значениям и очищает настройки/снимки A/B в матрице морфинга. Пользовательские пресеты остаются.");
-    savePresetButton.setTooltip("Сохраняет текущий звук как новый пользовательский пресет.");
-    generatorButton.setTooltip("Создаёт звук по короткому текстовому рецепту или делает вариации.");
-    morphButton.setTooltip("Смешивает четыре сохранённых звука при перемещении точки X/Y.");
-    soundDNAButton.setTooltip("Анализирует и сравнивает тембры по параметрам синтезатора.");
-    modulationButton.setTooltip("Направляет низкочастотные генераторы, огибающие и MIDI-контроллеры на параметры синтезатора.");
-    engineButton.setTooltip("Показывает полный список автоматизируемых параметров.");
-    waveform.setTooltip("Выберите форму волны основного осциллятора.");
-    attack.setTooltip("Время нарастания громкости после нажатия клавиши.");
-    decay.setTooltip("Время перехода от пика атаки к уровню удержания.");
-    sustain.setTooltip("Уровень громкости, пока удерживается MIDI-нота.");
-    release.setTooltip("Время затухания после отпускания MIDI-ноты.");
-    master.setTooltip("Общая громкость инструмента на выходе.");
-    voices.setTooltip("Максимальное количество одновременно звучащих нот.");
-    voiceMode.setTooltip("Полифония позволяет играть несколько нот; монофония — только одну; легато связывает ноты, сыгранные без отпускания предыдущей.");
-    glideEnabled.setTooltip("Включает скольжение высоты между нотами.");
-    glideTime.setTooltip("Длительность перехода между высотами нот при включённом глиссандо.");
+    presetButton.setTooltip(pas1::ui::utf8String("Открывает заводские и пользовательские пресеты."));
+    homeButton.setTooltip(pas1::ui::utf8String("Возвращает на главную страницу управления звуком."));
+    oscillatorButton.setTooltip(pas1::ui::utf8String("Настройка осцилляторов, унисона, ЧМ и шума."));
+    filterButton.setTooltip(pas1::ui::utf8String("Настройка фильтра и амплитудной/фильтровой огибающих."));
+    effectsButton.setTooltip(pas1::ui::utf8String("Настройка искажений, модуляции, задержки, реверберации и эквалайзера."));
+    settingsButton.setTooltip(pas1::ui::utf8String("Настройка голосов, выходного сигнала и сброс параметров."));
+    resetDefaultsButton.setTooltip(pas1::ui::utf8String("Сбрасывает параметры к заводским значениям и очищает настройки/снимки A/B в матрице морфинга. Пользовательские пресеты остаются."));
+    savePresetButton.setTooltip(pas1::ui::utf8String("Сохраняет текущий звук как новый пользовательский пресет."));
+    generatorButton.setTooltip(pas1::ui::utf8String("Создаёт звук по короткому текстовому рецепту или делает вариации."));
+    morphButton.setTooltip(pas1::ui::utf8String("Смешивает четыре сохранённых звука при перемещении точки X/Y."));
+    soundDNAButton.setTooltip(pas1::ui::utf8String("Анализирует и сравнивает тембры по параметрам синтезатора."));
+    modulationButton.setTooltip(pas1::ui::utf8String("Направляет низкочастотные генераторы, огибающие и MIDI-контроллеры на параметры синтезатора."));
+    engineButton.setTooltip(pas1::ui::utf8String("Показывает полный список автоматизируемых параметров."));
+    waveform.setTooltip(pas1::ui::utf8String("Выберите форму волны основного осциллятора."));
+    attack.setTooltip(pas1::ui::utf8String("Время нарастания громкости после нажатия клавиши."));
+    decay.setTooltip(pas1::ui::utf8String("Время перехода от пика атаки к уровню удержания."));
+    sustain.setTooltip(pas1::ui::utf8String("Уровень громкости, пока удерживается MIDI-нота."));
+    release.setTooltip(pas1::ui::utf8String("Время затухания после отпускания MIDI-ноты."));
+    master.setTooltip(pas1::ui::utf8String("Общая громкость инструмента на выходе."));
+    voices.setTooltip(pas1::ui::utf8String("Максимальное количество одновременно звучащих нот."));
+    voiceMode.setTooltip(pas1::ui::utf8String("Полифония позволяет играть несколько нот; монофония — только одну; легато связывает ноты, сыгранные без отпускания предыдущей."));
+    glideEnabled.setTooltip(pas1::ui::utf8String("Включает скольжение высоты между нотами."));
+    glideTime.setTooltip(pas1::ui::utf8String("Длительность перехода между высотами нот при включённом глиссандо."));
 
     pas1::diagnostics::startupTrace("editor.genericEditor.before");
     engineEditor = std::make_unique<juce::GenericAudioProcessorEditor>(processor_);
@@ -110,15 +110,15 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     pas1::diagnostics::startupTrace("editor.oscillatorPage.before");
     oscillatorWaveformGraph = std::make_unique<OscillatorWaveformGraph>(processor_);
     oscillatorPage = std::make_unique<ParameterPage>(
-        processor_.parameters, "ОСЦИЛЛЯТОРЫ",
+        processor_.parameters, pas1::ui::utf8String("ОСЦИЛЛЯТОРЫ"),
         std::vector<ParameterPageGroup>{
-            {"ОСЦИЛЛЯТОР 1", {"waveform", "osc1level", "osc1octave", "osc1fine",
+            {pas1::ui::utf8String("ОСЦИЛЛЯТОР 1"), {"waveform", "osc1level", "osc1octave", "osc1fine",
                               "osc1phase", "wavetablescan", "unisonvoices", "unisondetune"}},
-            {"ОСЦИЛЛЯТОР 2", {"osc2wave", "osc2level", "osc2detune", "osc2phase",
+            {pas1::ui::utf8String("ОСЦИЛЛЯТОР 2"), {"osc2wave", "osc2level", "osc2detune", "osc2phase",
                               "osc2sync", "fmamount", "ringamount"}},
-            {"ОСЦИЛЛЯТОР 3, САБ И ШУМ", {"osc3wave", "osc3level", "pulsewidth",
+            {pas1::ui::utf8String("ОСЦИЛЛЯТОР 3, САБ И ШУМ"), {"osc3wave", "osc3level", "pulsewidth",
                                            "sublevel", "noiselevel"}},
-            {"МЕТАЛЛИЧЕСКИЕ ЯЗЫЧКИ", {"musicboxmix", "musicboxbrightness", "musicboxdecay",
+            {pas1::ui::utf8String("МЕТАЛЛИЧЕСКИЕ ЯЗЫЧКИ"), {"musicboxmix", "musicboxbrightness", "musicboxdecay",
                                       "musicboxresonance", "musicboxinharmonicity", "musicboxstrike"}}
         },
         ParameterPageTheme{}, oscillatorWaveformGraph.get(), 116);
@@ -131,10 +131,10 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
         juce::Colour{0xffd9a7c0}, juce::Colour{0xff8d5675}
     };
     ancientPage = std::make_unique<ParameterPage>(
-        processor_.parameters, "ДРЕВНИЕ ТЕМБРЫ / АУЛОС · ЛИРА · БРОНЗА",
+        processor_.parameters, pas1::ui::utf8String("ДРЕВНИЕ ТЕМБРЫ / АУЛОС · ЛИРА · БРОНЗА"),
         std::vector<ParameterPageGroup>{
-            {"ИНСТРУМЕНТ И СМЕСЬ", {"ancientinstrument", "ancientmix", "ancientbrightness"}},
-            {"РЕЗОНАНС И ТЕМБР", {"ancientdecay", "ancientair", "ancientdetune"}}
+            {pas1::ui::utf8String("ИНСТРУМЕНТ И СМЕСЬ"), {"ancientinstrument", "ancientmix", "ancientbrightness"}},
+            {pas1::ui::utf8String("РЕЗОНАНС И ТЕМБР"), {"ancientdecay", "ancientair", "ancientdetune"}}
         },
         ancientTheme);
     addAndMakeVisible(*ancientPage);
@@ -142,13 +142,13 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     pas1::diagnostics::startupTrace("editor.filterPage.before");
     filterGraphs = std::make_unique<FilterGraphs>(processor_);
     filterPage = std::make_unique<ParameterPage>(
-        processor_.parameters, "ФИЛЬТРЫ И ОГИБАЮЩИЕ",
+        processor_.parameters, pas1::ui::utf8String("ФИЛЬТРЫ И ОГИБАЮЩИЕ"),
         std::vector<ParameterPageGroup>{
-            {"ФИЛЬТР", {"filtertype", "filtercutoff", "filterresonance", "filterdrive"}},
-            {"МОДУЛЯЦИЯ ФИЛЬТРА", {"filterenvamount", "filterkeytracking", "filtervelocity",
+            {pas1::ui::utf8String("ФИЛЬТР"), {"filtertype", "filtercutoff", "filterresonance", "filterdrive"}},
+            {pas1::ui::utf8String("МОДУЛЯЦИЯ ФИЛЬТРА"), {"filterenvamount", "filterkeytracking", "filtervelocity",
                                    "filtermodwheel", "filterrandom"}},
-            {"ОГИБАЮЩАЯ ФИЛЬТРА", {"filterattack", "filterdecay", "filtersustain", "filterrelease"}},
-            {"АМПЛИТУДНАЯ ОГИБАЮЩАЯ", {"attack", "decay", "sustain", "release"}}
+            {pas1::ui::utf8String("ОГИБАЮЩАЯ ФИЛЬТРА"), {"filterattack", "filterdecay", "filtersustain", "filterrelease"}},
+            {pas1::ui::utf8String("АМПЛИТУДНАЯ ОГИБАЮЩАЯ"), {"attack", "decay", "sustain", "release"}}
         },
         ParameterPageTheme{}, filterGraphs.get(), 214);
     pas1::diagnostics::startupTrace("editor.filterPage.created");
@@ -158,33 +158,33 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     for (int index = 1; index <= 4; ++index) {
         const auto prefix = "lfo" + juce::String(index);
         lfoGroups.push_back({
-            "НЧ-ГЕНЕРАТОР " + juce::String(index),
+            pas1::ui::utf8String("НЧ-ГЕНЕРАТОР ") + juce::String(index),
             {prefix + "wave", prefix + "rate", prefix + "amount", prefix + "target",
              prefix + "sync", prefix + "division", prefix + "phase", prefix + "fade",
              prefix + "retrigger"}
         });
     }
     pas1::diagnostics::startupTrace("editor.lfoPage.before");
-    lfoPage = makePage("МОДУЛЯЦИЯ НЧ-ГЕНЕРАТОРОВ", std::move(lfoGroups));
+    lfoPage = makePage(pas1::ui::utf8String("МОДУЛЯЦИЯ НЧ-ГЕНЕРАТОРОВ"), std::move(lfoGroups));
     pas1::diagnostics::startupTrace("editor.lfoPage.created");
     pas1::diagnostics::startupTrace("editor.effectsPage.before");
-    effectsPage = makePage("ЭФФЕКТЫ", {
-        {"ИСКАЖЕНИЕ", {"distortionenabled", "distortionmix", "distortiondrive"}},
-        {"ХОРУС", {"chorusenabled", "chorusmix", "chorusrate", "chorusdepth"}},
-        {"ФАЗЕР", {"phaserenabled", "phasermix", "phaserrate", "phaserdepth"}},
-        {"ЗАДЕРЖКА", {"delayenabled", "delaymix", "delaytime", "delayfeedback"}},
-        {"РЕВЕРБЕРАЦИЯ", {"reverbenabled", "reverbmix", "reverbdecay", "reverbdamping"}},
-        {"ЭКВАЛАЙЗЕР И ВЫХОД", {"eqenabled", "eqmix", "eqlowgain", "eqhighgain",
+    effectsPage = makePage(pas1::ui::utf8String("ЭФФЕКТЫ"), {
+        {pas1::ui::utf8String("ИСКАЖЕНИЕ"), {"distortionenabled", "distortionmix", "distortiondrive"}},
+        {pas1::ui::utf8String("ХОРУС"), {"chorusenabled", "chorusmix", "chorusrate", "chorusdepth"}},
+        {pas1::ui::utf8String("ФАЗЕР"), {"phaserenabled", "phasermix", "phaserrate", "phaserdepth"}},
+        {pas1::ui::utf8String("ЗАДЕРЖКА"), {"delayenabled", "delaymix", "delaytime", "delayfeedback"}},
+        {pas1::ui::utf8String("РЕВЕРБЕРАЦИЯ"), {"reverbenabled", "reverbmix", "reverbdecay", "reverbdamping"}},
+        {pas1::ui::utf8String("ЭКВАЛАЙЗЕР И ВЫХОД"), {"eqenabled", "eqmix", "eqlowgain", "eqhighgain",
                          "limiterenabled", "limiterthreshold", "stereowidth"}}
     });
     pas1::diagnostics::startupTrace("editor.effectsPage.created");
     addAndMakeVisible(*effectsPage);
     effectsPage->setVisible(false);
     pas1::diagnostics::startupTrace("editor.settingsPage.before");
-    settingsPage = makePage("НАСТРОЙКИ И ИСПОЛНЕНИЕ", {
-        {"ГОЛОСА", {"polyphony", "voicemode", "glideenabled", "glidetime"}},
-        {"ВЫХОД", {"master", "limiterenabled", "limiterthreshold"}},
-        {"АВТОМАТИЗАЦИЯ В ХОСТЕ", {"morphx", "morphy"}}
+    settingsPage = makePage(pas1::ui::utf8String("НАСТРОЙКИ И ИСПОЛНЕНИЕ"), {
+        {pas1::ui::utf8String("ГОЛОСА"), {"polyphony", "voicemode", "glideenabled", "glidetime"}},
+        {pas1::ui::utf8String("ВЫХОД"), {"master", "limiterenabled", "limiterthreshold"}},
+        {pas1::ui::utf8String("АВТОМАТИЗАЦИЯ В ХОСТЕ"), {"morphx", "morphy"}}
     });
     pas1::diagnostics::startupTrace("editor.settingsPage.created");
     addAndMakeVisible(*settingsPage);
@@ -219,8 +219,8 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     pas1::diagnostics::startupTrace("editor.modulationPanel.created");
     modulationTabs = std::make_unique<juce::TabbedComponent>(
         juce::TabbedButtonBar::TabsAtTop);
-    modulationTabs->addTab("НЧ-ГЕНЕРАТОРЫ", accent, lfoPage.get(), false);
-    modulationTabs->addTab("МАТРИЦА МАРШРУТИЗАЦИИ", accent, modulationPanel.get(), false);
+    modulationTabs->addTab(pas1::ui::utf8String("НЧ-ГЕНЕРАТОРЫ"), accent, lfoPage.get(), false);
+    modulationTabs->addTab(pas1::ui::utf8String("МАТРИЦА МАРШРУТИЗАЦИИ"), accent, modulationPanel.get(), false);
     addAndMakeVisible(*modulationTabs);
     modulationTabs->setVisible(false);
 
@@ -241,7 +241,7 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     }
     ancientButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour{0xff65314d});
     ancientButton.setColour(juce::TextButton::textColourOnId, juce::Colour{0xffffb6db});
-    resetDefaultsButton.setButtonText("СБРОС");
+    resetDefaultsButton.setButtonText(pas1::ui::utf8String("СБРОС"));
     storeSnapshotAButton.setVisible(false);
     storeSnapshotBButton.setVisible(false);
     compareSnapshotsButton.setVisible(false);
@@ -265,24 +265,24 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
         snapshotA.setSize(0);
         processor_.getStateInformation(snapshotA);
         showingSnapshotB = false;
-        compareSnapshotsButton.setButtonText("ПОКАЗАТЬ B");
+        compareSnapshotsButton.setButtonText(pas1::ui::utf8String("ПОКАЗАТЬ B"));
         compareSnapshotsButton.setToggleState(false, juce::dontSendNotification);
     };
     storeSnapshotBButton.onClick = [this] {
         snapshotB.setSize(0);
         processor_.getStateInformation(snapshotB);
         showingSnapshotB = true;
-        compareSnapshotsButton.setButtonText("ПОКАЗАТЬ A");
+        compareSnapshotsButton.setButtonText(pas1::ui::utf8String("ПОКАЗАТЬ A"));
         compareSnapshotsButton.setToggleState(true, juce::dontSendNotification);
     };
-    compareSnapshotsButton.setButtonText("ПОКАЗАТЬ B");
+    compareSnapshotsButton.setButtonText(pas1::ui::utf8String("ПОКАЗАТЬ B"));
     compareSnapshotsButton.onClick = [this] {
         auto& target = showingSnapshotB ? snapshotA : snapshotB;
         if (target.getSize() == 0) {
             juce::AlertWindow::showMessageBoxAsync(
-                juce::MessageBoxIconType::InfoIcon, "Сравнение A/B — PAS 1",
-                "Сначала сохраните снимки A и B, чтобы переключаться между ними.",
-                "ОК", this);
+                juce::MessageBoxIconType::InfoIcon, pas1::ui::utf8String("Сравнение A/B — PAS 1"),
+                pas1::ui::utf8String("Сначала сохраните снимки A и B, чтобы переключаться между ними."),
+                pas1::ui::utf8String("ОК"), this);
             compareSnapshotsButton.setToggleState(showingSnapshotB,
                                                    juce::dontSendNotification);
             return;
@@ -290,16 +290,16 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
         processor_.setStateInformation(target.getData(),
                                        static_cast<int>(target.getSize()));
         showingSnapshotB = !showingSnapshotB;
-        compareSnapshotsButton.setButtonText(showingSnapshotB ? "ПОКАЗАТЬ A" : "ПОКАЗАТЬ B");
+        compareSnapshotsButton.setButtonText(showingSnapshotB ? pas1::ui::utf8String("ПОКАЗАТЬ A") : pas1::ui::utf8String("ПОКАЗАТЬ B"));
     };
     resetDefaultsButton.onClick = [this] {
         juce::Component::SafePointer<Pas1AudioProcessorEditor> safeThis(this);
         juce::AlertWindow::showOkCancelBox(
-            juce::MessageBoxIconType::WarningIcon, "Сбросить параметры PAS 1?",
-            "Все автоматизируемые параметры вернутся к заводским значениям, "
+            juce::MessageBoxIconType::WarningIcon, pas1::ui::utf8String("Сбросить параметры PAS 1?"),
+            pas1::ui::utf8String("Все автоматизируемые параметры вернутся к заводским значениям, "
             "а настройки и снимки A/B в Morph будут очищены. "
-            "Текущий звук изменится; сохранённые пользовательские пресеты не удаляются.",
-            "Сбросить", "Отмена", this,
+            "Текущий звук изменится; сохранённые пользовательские пресеты не удаляются."),
+            pas1::ui::utf8String("Сбросить"), pas1::ui::utf8String("Отмена"), this,
             juce::ModalCallbackFunction::create([safeThis](int result) {
                 if (safeThis == nullptr || result != 1)
                     return;
@@ -314,30 +314,30 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
             }));
     };
 
-    waveform.addItemList({"Синус", "Треугольник", "Пила", "Прямоугольник"}, 1);
+    waveform.addItemList({pas1::ui::utf8String("Синус"), pas1::ui::utf8String("Треугольник"), pas1::ui::utf8String("Пила"), pas1::ui::utf8String("Прямоугольник")}, 1);
     waveform.setColour(juce::ComboBox::backgroundColourId, panel);
     waveform.setColour(juce::ComboBox::textColourId, text);
     waveform.setColour(juce::ComboBox::outlineColourId, brassTrim);
     waveform.setColour(juce::ComboBox::arrowColourId, accent);
     addAndMakeVisible(waveform);
-    styleLabel(waveformLabel, "ОСЦИЛЛЯТОР");
+    styleLabel(waveformLabel, pas1::ui::utf8String("ОСЦИЛЛЯТОР"));
     addAndMakeVisible(waveformLabel);
 
     for (auto* slider : {&attack, &decay, &sustain, &release, &master, &voices}) {
         styleSlider(*slider);
         addAndMakeVisible(*slider);
     }
-    styleLabel(attackLabel, "АТАКА");
-    styleLabel(decayLabel, "СПАД");
-    styleLabel(sustainLabel, "УДЕРЖАНИЕ");
-    styleLabel(releaseLabel, "ЗАТУХАНИЕ");
-    styleLabel(masterLabel, "ГРОМКОСТЬ");
-    styleLabel(voicesLabel, "ГОЛОСА");
+    styleLabel(attackLabel, pas1::ui::utf8String("АТАКА"));
+    styleLabel(decayLabel, pas1::ui::utf8String("СПАД"));
+    styleLabel(sustainLabel, pas1::ui::utf8String("УДЕРЖАНИЕ"));
+    styleLabel(releaseLabel, pas1::ui::utf8String("ЗАТУХАНИЕ"));
+    styleLabel(masterLabel, pas1::ui::utf8String("ГРОМКОСТЬ"));
+    styleLabel(voicesLabel, pas1::ui::utf8String("ГОЛОСА"));
     for (auto* label : {&attackLabel, &decayLabel, &sustainLabel, &releaseLabel, &masterLabel, &voicesLabel})
         addAndMakeVisible(*label);
 
     voices.setNumDecimalPlacesToDisplay(0);
-    voices.setTextValueSuffix(" нот");
+    voices.setTextValueSuffix(pas1::ui::utf8String(" нот"));
     attack.setTextValueSuffix(" s");
     decay.setTextValueSuffix(" s");
     release.setTextValueSuffix(" s");
@@ -359,13 +359,13 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     masterAttachment = std::make_unique<SliderAttachment>(state, "master", master);
     voicesAttachment = std::make_unique<SliderAttachment>(state, "polyphony", voices);
 
-    voiceMode.addItemList({"Полифония", "Монофония", "Легато"}, 1);
+    voiceMode.addItemList({pas1::ui::utf8String("Полифония"), pas1::ui::utf8String("Монофония"), pas1::ui::utf8String("Легато")}, 1);
     voiceMode.setColour(juce::ComboBox::backgroundColourId, panel);
     voiceMode.setColour(juce::ComboBox::textColourId, text);
     voiceMode.setColour(juce::ComboBox::outlineColourId, brassTrim);
     voiceMode.setColour(juce::ComboBox::arrowColourId, accent);
     addAndMakeVisible(voiceMode);
-    styleLabel(voiceModeLabel, "РЕЖИМ ГОЛОСОВ");
+    styleLabel(voiceModeLabel, pas1::ui::utf8String("РЕЖИМ ГОЛОСОВ"));
     addAndMakeVisible(voiceModeLabel);
 
     glideEnabled.setClickingTogglesState(true);
@@ -383,7 +383,7 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     glideTime.setColour(juce::Slider::textBoxBackgroundColourId, panel);
     glideTime.setColour(juce::Slider::textBoxOutlineColourId, brassTrim);
     addAndMakeVisible(glideTime);
-    styleLabel(glideTimeLabel, "ВРЕМЯ ГЛИССАНДО");
+    styleLabel(glideTimeLabel, pas1::ui::utf8String("ВРЕМЯ ГЛИССАНДО"));
     addAndMakeVisible(glideTimeLabel);
     voiceModeAttachment = std::make_unique<ComboBoxAttachment>(state, "voicemode", voiceMode);
     glideEnabledAttachment = std::make_unique<ButtonAttachment>(
@@ -427,26 +427,26 @@ void Pas1AudioProcessorEditor::paint(juce::Graphics& graphics) {
     graphics.drawText("♪", 246, 22, 24, 30, juce::Justification::centred);
     graphics.setColour(muted);
     graphics.setFont(juce::FontOptions{9.0f, juce::Font::bold});
-    graphics.drawText("ЗВУКОВАЯ ШКАТУЛКА", 270, 30, 150, 14,
+    graphics.drawText(pas1::ui::utf8String("ЗВУКОВАЯ ШКАТУЛКА"), 270, 30, 150, 14,
                       juce::Justification::centredLeft);
     graphics.setColour(muted);
     graphics.setFont(juce::FontOptions{11.0f});
     const auto subtitle = [this]() -> juce::String {
         switch (currentPage) {
-            case Page::home: return "СИНТЕЗАТОР-ШКАТУЛКА  /  ИСПОЛНЕНИЕ";
-            case Page::oscillators: return "ЗВУК  /  ОСЦИЛЛЯТОРЫ";
-            case Page::ancient: return "ДРЕВНИЕ ТЕМБРЫ  /  АУЛОС · ЛИРА · БРОНЗА";
-            case Page::filters: return "ЗВУК  /  ФИЛЬТРЫ И ОГИБАЮЩИЕ";
-            case Page::modulation: return "ЗВУК  /  МОДУЛЯЦИЯ";
-            case Page::morph: return "МАТРИЦА МОРФИНГА  /  АВТОМАТИЗАЦИЯ X–Y";
-            case Page::generator: return "РЕЦЕПТ ЗВУКА  /  ВАРИАЦИИ";
-            case Page::soundDNA: return "ДНК ЗВУКА  /  АНАЛИЗ ТЕМБРА";
-            case Page::effects: return "ЗВУК  /  ЭФФЕКТЫ";
-            case Page::presets: return "БИБЛИОТЕКА ПРЕСЕТОВ  /  ПОИСК И УПОРЯДОЧИВАНИЕ";
-            case Page::settings: return "ПЛАГИН  /  НАСТРОЙКИ И ИСПОЛНЕНИЕ";
-            case Page::allParameters: return "ДВИЖОК  /  ПОЛНЫЙ СПИСОК ПАРАМЕТРОВ";
+            case Page::home: return pas1::ui::utf8String("СИНТЕЗАТОР-ШКАТУЛКА  /  ИСПОЛНЕНИЕ");
+            case Page::oscillators: return pas1::ui::utf8String("ЗВУК  /  ОСЦИЛЛЯТОРЫ");
+            case Page::ancient: return pas1::ui::utf8String("ДРЕВНИЕ ТЕМБРЫ  /  АУЛОС · ЛИРА · БРОНЗА");
+            case Page::filters: return pas1::ui::utf8String("ЗВУК  /  ФИЛЬТРЫ И ОГИБАЮЩИЕ");
+            case Page::modulation: return pas1::ui::utf8String("ЗВУК  /  МОДУЛЯЦИЯ");
+            case Page::morph: return pas1::ui::utf8String("МАТРИЦА МОРФИНГА  /  АВТОМАТИЗАЦИЯ X–Y");
+            case Page::generator: return pas1::ui::utf8String("РЕЦЕПТ ЗВУКА  /  ВАРИАЦИИ");
+            case Page::soundDNA: return pas1::ui::utf8String("ДНК ЗВУКА  /  АНАЛИЗ ТЕМБРА");
+            case Page::effects: return pas1::ui::utf8String("ЗВУК  /  ЭФФЕКТЫ");
+            case Page::presets: return pas1::ui::utf8String("БИБЛИОТЕКА ПРЕСЕТОВ  /  ПОИСК И УПОРЯДОЧИВАНИЕ");
+            case Page::settings: return pas1::ui::utf8String("ПЛАГИН  /  НАСТРОЙКИ И ИСПОЛНЕНИЕ");
+            case Page::allParameters: return pas1::ui::utf8String("ДВИЖОК  /  ПОЛНЫЙ СПИСОК ПАРАМЕТРОВ");
         }
-        return "АДАПТИВНЫЙ СИНТЕЗАТОР";
+        return pas1::ui::utf8String("АДАПТИВНЫЙ СИНТЕЗАТОР");
     }();
     graphics.drawFittedText(subtitle, juce::Rectangle<int>{38, 56, 380, 18},
                             juce::Justification::centredLeft, 1, 0.7f);
@@ -457,7 +457,7 @@ void Pas1AudioProcessorEditor::paint(juce::Graphics& graphics) {
     graphics.setColour(displayedMidiActivity > 0.06f ? accent : brassTrim);
     graphics.fillEllipse(451.0f, 41.0f, 9.0f, 9.0f);
     graphics.setColour(muted);
-    graphics.drawText("ЗВУК", 470, 40, 38, 12, juce::Justification::centredLeft);
+    graphics.drawText(pas1::ui::utf8String("ЗВУК"), 470, 40, 38, 12, juce::Justification::centredLeft);
     const juce::Rectangle<float> meterTrack{510.0f, 42.0f,
                                             static_cast<float>(std::max(80, getWidth() - 770)), 7.0f};
     graphics.setColour(brassTrim);
@@ -491,9 +491,9 @@ void Pas1AudioProcessorEditor::paint(juce::Graphics& graphics) {
 
     graphics.setColour(accent);
     graphics.setFont(juce::FontOptions{10.0f, juce::Font::bold});
-    graphics.drawText("ИСТОЧНИК ЗВУКА", 48, 130, 200, 16, juce::Justification::centredLeft);
-    graphics.drawText("АМПЛИТУДНАЯ ОГИБАЮЩАЯ", 48, 222, 250, 16, juce::Justification::centredLeft);
-    graphics.drawText("ИСПОЛНЕНИЕ", 48, 408, 100, 16, juce::Justification::centredLeft);
+    graphics.drawText(pas1::ui::utf8String("ИСТОЧНИК ЗВУКА"), 48, 130, 200, 16, juce::Justification::centredLeft);
+    graphics.drawText(pas1::ui::utf8String("АМПЛИТУДНАЯ ОГИБАЮЩАЯ"), 48, 222, 250, 16, juce::Justification::centredLeft);
+    graphics.drawText(pas1::ui::utf8String("ИСПОЛНЕНИЕ"), 48, 408, 100, 16, juce::Justification::centredLeft);
 
     const auto readValue = [this](const char* id, float fallback) {
         if (const auto* value = processor_.parameters.getRawParameterValue(id))
@@ -537,7 +537,7 @@ void Pas1AudioProcessorEditor::paint(juce::Graphics& graphics) {
                                        sustainLevel, releaseSeconds);
     graphics.setColour(muted);
     graphics.setFont(juce::FontOptions{9.0f});
-    graphics.drawText("ПЕРЕТАЩИТЕ ТОЧКИ, ЧТОБЫ ИЗМЕНИТЬ ОГИБАЮЩУЮ",
+    graphics.drawText(pas1::ui::utf8String("ПЕРЕТАЩИТЕ ТОЧКИ, ЧТОБЫ ИЗМЕНИТЬ ОГИБАЮЩУЮ"),
                       static_cast<int>(plot.left), 232,
                       static_cast<int>(plot.right - plot.left), 15,
                       juce::Justification::centredLeft);
@@ -876,13 +876,13 @@ void Pas1AudioProcessorEditor::showPage(Page page) {
 }
 
 void Pas1AudioProcessorEditor::savePreset() {
-    auto* alert = new juce::AlertWindow("Сохранить пресет PAS 1",
-                                        "Сохраните текущий звук в библиотеку пресетов.",
+    auto* alert = new juce::AlertWindow(pas1::ui::utf8String("Сохранить пресет PAS 1"),
+                                        pas1::ui::utf8String("Сохраните текущий звук в библиотеку пресетов."),
                                         juce::MessageBoxIconType::NoIcon);
-    alert->addTextEditor("presetName", "Мой пресет", "Название");
-    alert->addTextEditor("presetCategory", "Пользовательские", "Категория");
-    alert->addButton("Сохранить", 1, juce::KeyPress{juce::KeyPress::returnKey});
-    alert->addButton("Отмена", 0, juce::KeyPress{juce::KeyPress::escapeKey});
+    alert->addTextEditor("presetName", pas1::ui::utf8String("Мой пресет"), pas1::ui::utf8String("Название"));
+    alert->addTextEditor("presetCategory", pas1::ui::utf8String("Пользовательские"), pas1::ui::utf8String("Категория"));
+    alert->addButton(pas1::ui::utf8String("Сохранить"), 1, juce::KeyPress{juce::KeyPress::returnKey});
+    alert->addButton(pas1::ui::utf8String("Отмена"), 0, juce::KeyPress{juce::KeyPress::escapeKey});
     juce::Component::SafePointer<juce::AlertWindow> safeAlert(alert);
     juce::Component::SafePointer<Pas1AudioProcessorEditor> safeThis(this);
     alert->enterModalState(true, juce::ModalCallbackFunction::create([safeThis, safeAlert](int result) {
@@ -901,5 +901,6 @@ void Pas1AudioProcessorEditor::savePreset() {
 
 void Pas1AudioProcessorEditor::showPresetError(const juce::String& message) {
     juce::AlertWindow::showMessageBoxAsync(
-        juce::MessageBoxIconType::WarningIcon, "Пресеты PAS 1", message, "ОК", this);
+        juce::MessageBoxIconType::WarningIcon, pas1::ui::utf8String("Пресеты PAS 1"), message,
+        pas1::ui::utf8String("ОК"), this);
 }

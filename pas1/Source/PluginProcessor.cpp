@@ -8,17 +8,34 @@
 #include "DSP/Portamento.h"
 #include "DSP/StateVariableFilter.h"
 #include "DSP/WavetableOscillator.h"
+#include "UI/Utf8Text.h"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
 #include <string>
+#include <utility>
 
 namespace {
 
 constexpr int kMaximumVoices = 32;
 constexpr double kTwoPi = 6.28318530717958647692;
+
+template <typename BaseParameter>
+class Utf8NamedParameter final : public BaseParameter {
+public:
+    template <typename... Args>
+    Utf8NamedParameter(juce::ParameterID id, const char* name, Args&&... args)
+        : BaseParameter(std::move(id), pas1::ui::utf8String(name),
+                        std::forward<Args>(args)...) {}
+
+    template <typename... Args>
+    Utf8NamedParameter(juce::ParameterID id, juce::String name, Args&&... args)
+        : BaseParameter(std::move(id), std::move(name),
+                        std::forward<Args>(args)...) {}
+};
+
 constexpr std::array<const char*, pas1::dsp::ModulationMatrix::sourceCount>
     kModulationSourceNames{
         "НЧ-генератор 1", "НЧ-генератор 2", "НЧ-генератор 3", "НЧ-генератор 4",
@@ -863,18 +880,18 @@ private:
 } // namespace
 
 juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createParameterLayout() {
-    using Parameter = juce::AudioParameterFloat;
+    using Parameter = Utf8NamedParameter<juce::AudioParameterFloat>;
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
-    layout.add(std::make_unique<juce::AudioParameterChoice>(
+    layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterChoice>>(
         juce::ParameterID{"waveform", 1},
         "Форма волны",
-        juce::StringArray{"Синус", "Треугольник", "Пила", "Прямоугольник"},
+        pas1::ui::utf8StringArray({"Синус", "Треугольник", "Пила", "Прямоугольник"}),
         2));
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"osc1level", 1}, "Уровень осц. 1",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.8f));
-    layout.add(std::make_unique<juce::AudioParameterInt>(
+    layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterInt>>(
         juce::ParameterID{"osc1octave", 1}, "Октава осц. 1", -3, 3, 0));
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"osc1fine", 1}, "Точная настройка осц. 1",
@@ -885,14 +902,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"wavetablescan", 1}, "Позиция волновой таблицы",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
-    layout.add(std::make_unique<juce::AudioParameterInt>(
+    layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterInt>>(
         juce::ParameterID{"unisonvoices", 1}, "Голоса унисона", 1, 7, 1));
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"unisondetune", 1}, "Расстройка унисона",
         juce::NormalisableRange<float>{0.0f, 50.0f, 0.1f}, 12.0f, " центов"));
-    layout.add(std::make_unique<juce::AudioParameterChoice>(
+    layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterChoice>>(
         juce::ParameterID{"osc2wave", 1}, "Форма волны осц. 2",
-        juce::StringArray{"Синус", "Треугольник", "Пила", "Прямоугольник"}, 0));
+        pas1::ui::utf8StringArray({"Синус", "Треугольник", "Пила", "Прямоугольник"}), 0));
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"osc2level", 1}, "Уровень осц. 2",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.2f));
@@ -902,7 +919,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"osc2phase", 1}, "Смещение фазы осц. 2",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
-    layout.add(std::make_unique<juce::AudioParameterBool>(
+    layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterBool>>(
         juce::ParameterID{"osc2sync", 1}, "Жёсткая синхронизация осц. 2", false));
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"fmamount", 1}, "Глубина ЧМ",
@@ -910,9 +927,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"ringamount", 1}, "Глубина кольцевой модуляции",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
-    layout.add(std::make_unique<juce::AudioParameterChoice>(
+    layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterChoice>>(
         juce::ParameterID{"osc3wave", 1}, "Форма волны осц. 3",
-        juce::StringArray{"Синус", "Треугольник", "Пила", "Прямоугольник"}, 1));
+        pas1::ui::utf8StringArray({"Синус", "Треугольник", "Пила", "Прямоугольник"}), 1));
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"osc3level", 1}, "Уровень осц. 3",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
@@ -943,9 +960,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"musicboxstrike", 1}, "Характер удара",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.58f));
-    layout.add(std::make_unique<juce::AudioParameterChoice>(
+    layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterChoice>>(
         juce::ParameterID{"ancientinstrument", 1}, "Древний инструмент",
-        juce::StringArray{"Выкл.", "Аулос", "Лира", "Бронзовый гонг", "Найденный металл"}, 0));
+        pas1::ui::utf8StringArray({"Выкл.", "Аулос", "Лира", "Бронзовый гонг", "Найденный металл"}), 0));
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"ancientmix", 1}, "Уровень древнего тембра",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.78f));
@@ -961,9 +978,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"ancientdetune", 1}, "Расстройка трубок аулоса",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.32f));
-    layout.add(std::make_unique<juce::AudioParameterChoice>(
+    layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterChoice>>(
         juce::ParameterID{"filtertype", 1}, "Тип фильтра",
-        juce::StringArray{"Низких частот", "Высоких частот", "Полосовой", "Режекторный"}, 0));
+        pas1::ui::utf8StringArray({"Низких частот", "Высоких частот", "Полосовой", "Режекторный"}), 0));
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"filtercutoff", 1}, "Частота среза фильтра",
         juce::NormalisableRange<float>{20.0f, 20000.0f, 0.1f, 0.25f}, 18000.0f, " Hz"));
@@ -1003,31 +1020,31 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
     for (int index = 0; index < 4; ++index) {
         const auto prefix = "lfo" + std::to_string(index + 1);
         layout.add(std::make_unique<Parameter>(
-            juce::ParameterID{prefix + "rate", 1}, "НЧ-генератор " + juce::String(index + 1) + " — скорость",
+            juce::ParameterID{prefix + "rate", 1}, pas1::ui::utf8String("НЧ-генератор ") + juce::String(index + 1) + pas1::ui::utf8String(" — скорость"),
             juce::NormalisableRange<float>{0.01f, 20.0f, 0.001f, 0.35f},
             index == 0 ? 5.0f : 1.0f, " Hz"));
         layout.add(std::make_unique<Parameter>(
-            juce::ParameterID{prefix + "amount", 1}, "НЧ-генератор " + juce::String(index + 1) + " — глубина",
+            juce::ParameterID{prefix + "amount", 1}, pas1::ui::utf8String("НЧ-генератор ") + juce::String(index + 1) + pas1::ui::utf8String(" — глубина"),
             juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
-        layout.add(std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID{prefix + "wave", 1}, "НЧ-генератор " + juce::String(index + 1) + " — форма волны",
-            juce::StringArray{"Синус", "Треугольник", "Пила", "Прямоугольник", "Выборка и удержание", "Плавный случайный"}, 0));
-        layout.add(std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID{prefix + "target", 1}, "НЧ-генератор " + juce::String(index + 1) + " — цель",
-            juce::StringArray{"Выкл.", "Высота тона", "Частота среза фильтра", "Уровень осц. 2"}, 0));
-        layout.add(std::make_unique<juce::AudioParameterBool>(
-            juce::ParameterID{prefix + "sync", 1}, "НЧ-генератор " + juce::String(index + 1) + " — синхронизация", false));
-        layout.add(std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID{prefix + "division", 1}, "НЧ-генератор " + juce::String(index + 1) + " — деление",
+        layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterChoice>>(
+            juce::ParameterID{prefix + "wave", 1}, pas1::ui::utf8String("НЧ-генератор ") + juce::String(index + 1) + pas1::ui::utf8String(" — форма волны"),
+            pas1::ui::utf8StringArray({"Синус", "Треугольник", "Пила", "Прямоугольник", "Выборка и удержание", "Плавный случайный"}), 0));
+        layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterChoice>>(
+            juce::ParameterID{prefix + "target", 1}, pas1::ui::utf8String("НЧ-генератор ") + juce::String(index + 1) + pas1::ui::utf8String(" — цель"),
+            pas1::ui::utf8StringArray({"Выкл.", "Высота тона", "Частота среза фильтра", "Уровень осц. 2"}), 0));
+    layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterBool>>(
+            juce::ParameterID{prefix + "sync", 1}, pas1::ui::utf8String("НЧ-генератор ") + juce::String(index + 1) + pas1::ui::utf8String(" — синхронизация"), false));
+        layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterChoice>>(
+            juce::ParameterID{prefix + "division", 1}, pas1::ui::utf8String("НЧ-генератор ") + juce::String(index + 1) + pas1::ui::utf8String(" — деление"),
             juce::StringArray{"1/1", "1/2", "1/4", "1/8", "1/16"}, 2));
         layout.add(std::make_unique<Parameter>(
-            juce::ParameterID{prefix + "phase", 1}, "НЧ-генератор " + juce::String(index + 1) + " — фаза",
+            juce::ParameterID{prefix + "phase", 1}, pas1::ui::utf8String("НЧ-генератор ") + juce::String(index + 1) + pas1::ui::utf8String(" — фаза"),
             juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
         layout.add(std::make_unique<Parameter>(
-            juce::ParameterID{prefix + "fade", 1}, "НЧ-генератор " + juce::String(index + 1) + " — нарастание",
+            juce::ParameterID{prefix + "fade", 1}, pas1::ui::utf8String("НЧ-генератор ") + juce::String(index + 1) + pas1::ui::utf8String(" — нарастание"),
             juce::NormalisableRange<float>{0.0f, 10.0f, 0.001f, 0.35f}, 0.0f, " s"));
-        layout.add(std::make_unique<juce::AudioParameterBool>(
-            juce::ParameterID{prefix + "retrigger", 1}, "НЧ-генератор " + juce::String(index + 1) + " — перезапуск",
+        layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterBool>>(
+            juce::ParameterID{prefix + "retrigger", 1}, pas1::ui::utf8String("НЧ-генератор ") + juce::String(index + 1) + pas1::ui::utf8String(" — перезапуск"),
             true));
     }
     layout.add(std::make_unique<Parameter>(
@@ -1045,12 +1062,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"master", 1}, "Общая громкость",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.75f));
-    layout.add(std::make_unique<juce::AudioParameterInt>(
+    layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterInt>>(
         juce::ParameterID{"polyphony", 1}, "Число нот", 1, kMaximumVoices, 16));
-    layout.add(std::make_unique<juce::AudioParameterChoice>(
+    layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterChoice>>(
         juce::ParameterID{"voicemode", 1}, "Режим голосов",
-        juce::StringArray{"Полифония", "Монофония", "Легато"}, 0));
-    layout.add(std::make_unique<juce::AudioParameterBool>(
+        pas1::ui::utf8StringArray({"Полифония", "Монофония", "Легато"}), 0));
+    layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterBool>>(
         juce::ParameterID{"glideenabled", 1}, "Глиссандо включено", false));
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"glidetime", 1}, "Время глиссандо",
@@ -1064,7 +1081,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"stereowidth", 1}, "Ширина стерео",
         juce::NormalisableRange<float>{0.0f, 2.0f, 0.001f}, 1.0f));
-    layout.add(std::make_unique<juce::AudioParameterBool>(
+    layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterBool>>(
         juce::ParameterID{"distortionenabled", 1}, "Искажение включено", true));
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"distortionmix", 1}, "Уровень искажения",
@@ -1072,7 +1089,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"distortiondrive", 1}, "Насыщение искажения",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.25f));
-    layout.add(std::make_unique<juce::AudioParameterBool>(
+    layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterBool>>(
         juce::ParameterID{"chorusenabled", 1}, "Хорус включён", false));
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"chorusmix", 1}, "Уровень хоруса",
@@ -1083,7 +1100,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"chorusdepth", 1}, "Глубина хоруса",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.5f));
-    layout.add(std::make_unique<juce::AudioParameterBool>(
+    layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterBool>>(
         juce::ParameterID{"phaserenabled", 1}, "Фазер включён", false));
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"phasermix", 1}, "Уровень фазера",
@@ -1094,7 +1111,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"phaserdepth", 1}, "Глубина фазера",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.5f));
-    layout.add(std::make_unique<juce::AudioParameterBool>(
+    layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterBool>>(
         juce::ParameterID{"delayenabled", 1}, "Задержка включена", false));
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"delaymix", 1}, "Уровень задержки",
@@ -1105,7 +1122,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"delayfeedback", 1}, "Обратная связь задержки",
         juce::NormalisableRange<float>{0.0f, 0.92f, 0.001f}, 0.25f));
-    layout.add(std::make_unique<juce::AudioParameterBool>(
+    layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterBool>>(
         juce::ParameterID{"reverbenabled", 1}, "Реверберация включена", false));
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"reverbmix", 1}, "Уровень реверберации",
@@ -1116,7 +1133,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"reverbdamping", 1}, "Демпфирование реверберации",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.5f));
-    layout.add(std::make_unique<juce::AudioParameterBool>(
+    layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterBool>>(
         juce::ParameterID{"eqenabled", 1}, "Эквалайзер включён", false));
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"eqmix", 1}, "Уровень эквалайзера",
@@ -1127,7 +1144,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"eqhighgain", 1}, "Усиление высоких частот",
         juce::NormalisableRange<float>{-12.0f, 12.0f, 0.1f}, 0.0f, " dB"));
-    layout.add(std::make_unique<juce::AudioParameterBool>(
+        layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterBool>>(
         juce::ParameterID{"limiterenabled", 1}, "Выходной лимитер включён", true));
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"limiterthreshold", 1}, "Порог лимитера",
@@ -1135,27 +1152,27 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
 
     juce::StringArray modulationSources;
     for (const auto* name : kModulationSourceNames)
-        modulationSources.add(name);
+        modulationSources.add(pas1::ui::utf8String(name));
     juce::StringArray modulationDestinations;
     for (const auto* name : kModulationDestinationNames)
-        modulationDestinations.add(name);
+        modulationDestinations.add(pas1::ui::utf8String(name));
     for (std::size_t index = 0; index < pas1::dsp::ModulationMatrix::routeCount; ++index) {
         const auto prefix = "modroute" + std::to_string(index + 1);
-        const auto routeName = "Маршрут модуляции " + juce::String(static_cast<int>(index + 1));
-        layout.add(std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID{prefix + "source", 1}, routeName + " — источник",
+        const auto routeName = pas1::ui::utf8String("Маршрут модуляции ") + juce::String(static_cast<int>(index + 1));
+    layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterChoice>>(
+            juce::ParameterID{prefix + "source", 1}, routeName + pas1::ui::utf8String(" — источник"),
             modulationSources, 0));
-        layout.add(std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID{prefix + "destination", 1}, routeName + " — цель",
+        layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterChoice>>(
+            juce::ParameterID{prefix + "destination", 1}, routeName + pas1::ui::utf8String(" — цель"),
             modulationDestinations, 0));
         layout.add(std::make_unique<Parameter>(
-            juce::ParameterID{prefix + "amount", 1}, routeName + " — глубина",
+            juce::ParameterID{prefix + "amount", 1}, routeName + pas1::ui::utf8String(" — глубина"),
             juce::NormalisableRange<float>{-1.0f, 1.0f, 0.001f}, 0.0f));
-        layout.add(std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID{prefix + "polarity", 1}, routeName + " — полярность",
-            juce::StringArray{"Биполярная", "Униполярная"}, 0));
-        layout.add(std::make_unique<juce::AudioParameterBool>(
-            juce::ParameterID{prefix + "enabled", 1}, routeName + " — включён", false));
+        layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterChoice>>(
+            juce::ParameterID{prefix + "polarity", 1}, routeName + pas1::ui::utf8String(" — полярность"),
+            pas1::ui::utf8StringArray({"Биполярная", "Униполярная"}), 0));
+        layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterBool>>(
+            juce::ParameterID{prefix + "enabled", 1}, routeName + pas1::ui::utf8String(" — включён"), false));
     }
     return layout;
 }
