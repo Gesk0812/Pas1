@@ -652,13 +652,14 @@ public:
         currentMode_ = mode;
     }
 
-    void renderBlock(juce::AudioBuffer<float>& output,
-                     const juce::MidiBuffer& midi,
-                     int startSample,
-                     int numSamples) {
+    int renderBlock(juce::AudioBuffer<float>& output,
+                    const juce::MidiBuffer& midi,
+                    int startSample,
+                    int numSamples) {
         // Keep event dispatch on the audio thread without JUCE Synthesiser's internal lock.
         const auto blockEnd = startSample + numSamples;
         auto cursor = startSample;
+        auto maximumActiveVoiceCount = getActiveVoiceCount();
         auto event = midi.findNextSamplePosition(startSample);
 
         for (; event != midi.cend(); ++event) {
@@ -668,15 +669,29 @@ public:
                 break;
 
             const auto renderEnd = std::clamp(eventSample, cursor, blockEnd);
-            if (renderEnd > cursor)
+            if (renderEnd > cursor) {
+                maximumActiveVoiceCount =
+                    std::max(maximumActiveVoiceCount, getActiveVoiceCount());
                 renderVoices(output, cursor, renderEnd - cursor);
+                maximumActiveVoiceCount =
+                    std::max(maximumActiveVoiceCount, getActiveVoiceCount());
+            }
 
             handleMidiEvent(metadata.getMessage());
+            maximumActiveVoiceCount =
+                std::max(maximumActiveVoiceCount, getActiveVoiceCount());
             cursor = renderEnd;
         }
 
-        if (cursor < blockEnd)
+        if (cursor < blockEnd) {
+            maximumActiveVoiceCount =
+                std::max(maximumActiveVoiceCount, getActiveVoiceCount());
             renderVoices(output, cursor, blockEnd - cursor);
+            maximumActiveVoiceCount =
+                std::max(maximumActiveVoiceCount, getActiveVoiceCount());
+        }
+
+        return maximumActiveVoiceCount;
     }
 
     int getActiveVoiceCount() const noexcept {
@@ -1396,8 +1411,10 @@ void Pas1AudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
     }
     modulationAccumulator.reset();
     updateMorphValues(samples);
-    pas1Synthesiser->renderBlock(buffer, midi, 0, samples);
-    const auto activeVoiceCount = std::max(1, pas1Synthesiser->getActiveVoiceCount());
+    const auto activeVoiceCount =
+        std::max(1, pas1Synthesiser->renderBlock(buffer, midi, 0, samples));
+    // Only reserve headroom for notes that actually overlap this block. The polyphony
+    // setting is a capacity limit and must not attenuate a lone note by default.
     const auto polyphonyHeadroom = 1.0f / std::sqrt(static_cast<float>(activeVoiceCount));
     for (int channel = 0; channel < buffer.getNumChannels(); ++channel) {
         auto* channelData = buffer.getWritePointer(channel);
