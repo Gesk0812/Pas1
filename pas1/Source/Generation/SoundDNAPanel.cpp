@@ -218,8 +218,9 @@ void SoundDNAPanel::exploreSoundSpace() {
     pendingProfile = pas1::dsp::SoundDNA::blend(
         currentProfile, builtInProfile(farthestIndex), getBlendAmount());
     displayProfile = *pendingProfile;
-    setStatus("Создан промежуточный профиль между текущим звуком и пресетом «"
-              + PresetManager::getBuiltInPresetInfo(farthestIndex).name + "».");
+    setStatus(pas1::ui::utf8String("Создан промежуточный профиль между текущим звуком и пресетом «")
+              + PresetManager::getBuiltInPresetInfo(farthestIndex).name
+              + pas1::ui::utf8String("»."));
     repaint();
 }
 
@@ -239,7 +240,7 @@ void SoundDNAPanel::generateFromDNA() {
     currentProfile = pas1::dsp::SoundDNA::analyze(captureParameters());
     displayProfile = currentProfile;
     pendingProfile.reset();
-    setStatus("Звук создан по ДНК. Оставьте его или верните прежнее состояние.");
+    setStatus(pas1::ui::utf8String("Звук создан по ДНК. Оставьте его или верните прежнее состояние."));
     repaint();
 }
 
@@ -247,7 +248,7 @@ void SoundDNAPanel::keepCurrent() {
     previewOpen = false;
     originalState = processor_.parameters.copyState();
     pendingProfile.reset();
-    setStatus("Текущий звук сохранён как новый исходный.");
+    setStatus(pas1::ui::utf8String("Текущий звук сохранён как новый исходный."));
 }
 
 void SoundDNAPanel::revert() {
@@ -256,7 +257,7 @@ void SoundDNAPanel::revert() {
     processor_.parameters.replaceState(originalState.createCopy());
     previewOpen = false;
     analyzeCurrent();
-    setStatus("Предыдущий звук восстановлен.");
+    setStatus(pas1::ui::utf8String("Предыдущий звук восстановлен."));
 }
 
 void SoundDNAPanel::loadSelectedMatch() {
@@ -266,7 +267,7 @@ void SoundDNAPanel::loadSelectedMatch() {
     if (processor_.presetManager.loadBuiltInPreset(
             similarPresetIndices[static_cast<std::size_t>(selected)])) {
         analyzeCurrent();
-        setStatus("Загружен выбранный похожий заводской пресет.");
+        setStatus(pas1::ui::utf8String("Загружен выбранный похожий заводской пресет."));
     }
 }
 
