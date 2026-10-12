@@ -11,6 +11,9 @@ enum class FilterType {
 
 class StateVariableFilter {
 public:
+    static float resonanceToQ(float resonance) noexcept;
+    static float migrateLegacyResonance(float legacyResonance) noexcept;
+
     void prepare(double sampleRate) noexcept;
     void reset() noexcept;
     void setParameters(float cutoffHz, float resonance, FilterType type) noexcept;

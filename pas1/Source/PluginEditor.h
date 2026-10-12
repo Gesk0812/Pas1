@@ -9,6 +9,7 @@
 #include "PluginProcessor.h"
 #include "Presets/PresetsPanel.h"
 #include "UI/ParameterPage.h"
+#include "UI/ParameterGraphs.h"
 #include "UI/SpectrumAnalyzer.h"
 
 #include <array>
@@ -28,6 +29,7 @@ private:
     enum class Page {
         home,
         oscillators,
+        ancient,
         filters,
         modulation,
         morph,
@@ -54,21 +56,22 @@ private:
 
     Pas1AudioProcessor& processor_;
     std::unique_ptr<juce::GenericAudioProcessorEditor> engineEditor;
-    juce::TextButton homeButton{"HOME"};
-    juce::TextButton oscillatorButton{"OSC"};
-    juce::TextButton filterButton{"FILTER"};
-    juce::TextButton effectsButton{"FX"};
-    juce::TextButton settingsButton{"SETTINGS"};
-    juce::TextButton engineButton{"ALL PARAMETERS"};
-    juce::TextButton presetButton{"PRESETS"};
-    juce::TextButton savePresetButton{"SAVE AS"};
-    juce::TextButton generatorButton{"GENERATOR"};
-    juce::TextButton morphButton{"MORPH"};
-    juce::TextButton soundDNAButton{"SOUND DNA"};
-    juce::TextButton modulationButton{"MOD"};
-    juce::TextButton resetDefaultsButton{"RESET PARAMETERS"};
-    juce::TextButton storeSnapshotAButton{"STORE A"};
-    juce::TextButton storeSnapshotBButton{"STORE B"};
+    juce::TextButton homeButton{"ГЛАВНАЯ"};
+    juce::TextButton oscillatorButton{"ОСЦ."};
+    juce::TextButton ancientButton{"ДРЕВНИЕ"};
+    juce::TextButton filterButton{"ФИЛЬТР"};
+    juce::TextButton effectsButton{"ЭФФЕКТЫ"};
+    juce::TextButton settingsButton{"НАСТР."};
+    juce::TextButton engineButton{"ПАРАМЕТРЫ"};
+    juce::TextButton presetButton{"ПРЕСЕТЫ"};
+    juce::TextButton savePresetButton{"СОХРАНИТЬ"};
+    juce::TextButton generatorButton{"ГЕНЕРАТОР"};
+    juce::TextButton morphButton{"МОРФИНГ"};
+    juce::TextButton soundDNAButton{"ДНК ЗВУКА"};
+    juce::TextButton modulationButton{"МОДУЛЯЦИЯ"};
+    juce::TextButton resetDefaultsButton{"СБРОС"};
+    juce::TextButton storeSnapshotAButton{"СОХР. A"};
+    juce::TextButton storeSnapshotBButton{"СОХР. B"};
     juce::TextButton compareSnapshotsButton{"A/B"};
     Page currentPage = Page::home;
     bool uiReady = false;
@@ -78,7 +81,10 @@ private:
     juce::MemoryBlock snapshotA;
     juce::MemoryBlock snapshotB;
     bool showingSnapshotB = false;
+    std::unique_ptr<OscillatorWaveformGraph> oscillatorWaveformGraph;
+    std::unique_ptr<FilterGraphs> filterGraphs;
     std::unique_ptr<ParameterPage> oscillatorPage;
+    std::unique_ptr<ParameterPage> ancientPage;
     std::unique_ptr<ParameterPage> filterPage;
     std::unique_ptr<ParameterPage> lfoPage;
     std::unique_ptr<ParameterPage> effectsPage;
@@ -102,7 +108,7 @@ private:
     juce::Slider master;
     juce::Slider voices;
     juce::ComboBox voiceMode;
-    juce::ToggleButton glideEnabled{"GLIDE"};
+    juce::ToggleButton glideEnabled{"ГЛИССАНДО"};
     juce::Slider glideTime;
     juce::Label attackLabel;
     juce::Label decayLabel;

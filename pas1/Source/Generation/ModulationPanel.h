@@ -29,7 +29,7 @@ private:
         juce::ComboBox destination;
         juce::Slider amount;
         juce::ComboBox polarity;
-        juce::ToggleButton enabled{"ON"};
+        juce::ToggleButton enabled{"ВКЛ"};
         std::unique_ptr<ComboBoxAttachment> sourceAttachment;
         std::unique_ptr<ComboBoxAttachment> destinationAttachment;
         std::unique_ptr<SliderAttachment> amountAttachment;

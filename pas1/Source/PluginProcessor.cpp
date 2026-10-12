@@ -21,12 +21,14 @@ constexpr int kMaximumVoices = 32;
 constexpr double kTwoPi = 6.28318530717958647692;
 constexpr std::array<const char*, pas1::dsp::ModulationMatrix::sourceCount>
     kModulationSourceNames{
-        "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Amp Envelope", "Filter Envelope",
-        "Velocity", "Mod Wheel", "Pitch Bend", "Key Tracking", "Random per Note"};
+        "НЧ-генератор 1", "НЧ-генератор 2", "НЧ-генератор 3", "НЧ-генератор 4",
+        "Амплитудная огибающая", "Огибающая фильтра", "Скорость нажатия",
+        "Колесо модуляции", "Изгиб высоты", "Отслеживание клавиши", "Случайно для ноты"};
 constexpr std::array<const char*, pas1::dsp::ModulationMatrix::destinationCount>
     kModulationDestinationNames{
-        "Pitch", "Osc 1 Level", "Wavetable Position", "Filter Cutoff", "Resonance",
-        "FM Amount", "Pan", "Distortion Mix", "Reverb Mix", "Morph X", "Morph Y"};
+        "Высота тона", "Уровень осц. 1", "Позиция волновой таблицы", "Срез фильтра",
+        "Резонанс", "Глубина ЧМ", "Панорама", "Уровень искажения",
+        "Уровень реверберации", "Морфинг X", "Морфинг Y"};
 constexpr std::array<const char*, pas1::dsp::MorphMatrix::parameterCount> kMorphParameterIds{
     "osc1level", "osc2level", "osc3level", "wavetablescan", "unisondetune",
     "filtercutoff", "filterresonance", "attack", "release", "lfo1amount",
@@ -78,6 +80,12 @@ struct EngineParameterPointers {
     std::atomic<float>* musicBoxResonance = nullptr;
     std::atomic<float>* musicBoxInharmonicity = nullptr;
     std::atomic<float>* musicBoxStrike = nullptr;
+    std::atomic<float>* ancientInstrument = nullptr;
+    std::atomic<float>* ancientMix = nullptr;
+    std::atomic<float>* ancientBrightness = nullptr;
+    std::atomic<float>* ancientDecay = nullptr;
+    std::atomic<float>* ancientAir = nullptr;
+    std::atomic<float>* ancientPipeDetune = nullptr;
     std::atomic<float>* filterType = nullptr;
     std::atomic<float>* filterCutoff = nullptr;
     std::atomic<float>* filterResonance = nullptr;
@@ -167,6 +175,7 @@ public:
             oscillator3_.reset();
             subOscillator_.reset();
             filter_.reset();
+            filterParametersInitialized_ = false;
             filterEnvelope_.setParameters(readFilterEnvelopeParameters());
             filterEnvelope_.noteOn();
             noteAgeSamples_ = 0;
@@ -190,6 +199,16 @@ public:
             engineParameters_.musicBoxResonance->load(),
             engineParameters_.musicBoxInharmonicity->load(),
             engineParameters_.musicBoxStrike->load());
+        ancientInstrument_.trigger(
+            static_cast<pas1::dsp::AncientInstrument>(std::clamp(
+                static_cast<int>(std::round(engineParameters_.ancientInstrument->load())),
+                0, 4)),
+            targetFrequency, static_cast<float>(currentSampleRate_),
+            engineParameters_.ancientBrightness->load(),
+            engineParameters_.ancientDecay->load(),
+            engineParameters_.ancientAir->load(),
+            engineParameters_.ancientPipeDetune->load(),
+            static_cast<std::uint32_t>(midiNoteNumber * 131 + voiceIndex_ * 977 + 1));
         updateEnvelopeParameters();
         if (!legatoTransition)
             envelope_.noteOn();
@@ -262,6 +281,11 @@ public:
         const auto subLevel = engineParameters_.subLevel->load();
         const auto noiseLevel = engineParameters_.noiseLevel->load();
         const auto musicBoxMix = std::clamp(engineParameters_.musicBoxMix->load(), 0.0f, 1.0f);
+        const auto ancientMode = std::clamp(
+            static_cast<int>(std::round(engineParameters_.ancientInstrument->load())), 0, 4);
+        const auto ancientMix = ancientMode == 0
+                                    ? 0.0f
+                                    : std::clamp(engineParameters_.ancientMix->load(), 0.0f, 1.0f);
         const auto detuneRatio = std::pow(2.0f, engineParameters_.oscillator2Detune->load() / 1200.0f);
         const auto hardSync = engineParameters_.oscillator2HardSync->load() >= 0.5f;
         const auto fmAmount = engineParameters_.oscillator2FmAmount->load();
@@ -425,8 +449,30 @@ public:
             cutoffOctaves += modWheel_ * filterModWheelAmount * 4.0f;
             cutoffOctaves += randomPerNote_ * filterRandomAmount * 4.0f;
             if ((sample & 7) == 0) {
-                const auto cutoff = baseCutoff * std::pow(2.0f, cutoffOctaves);
-                filter_.setParameters(cutoff, modulatedResonance, filterType);
+                const auto safeOctaves = std::clamp(cutoffOctaves, -12.0f, 12.0f);
+                auto targetCutoff = baseCutoff * std::exp2(safeOctaves);
+                if (!std::isfinite(targetCutoff) || targetCutoff <= 0.0f)
+                    targetCutoff = baseCutoff;
+                targetCutoff = std::clamp(
+                    targetCutoff, 10.0f,
+                    static_cast<float>(std::min(20000.0, currentSampleRate_ * 0.45)));
+                const auto targetLogCutoff = std::log2(targetCutoff);
+                const auto targetResonance = std::clamp(modulatedResonance, 0.0f, 1.0f);
+                if (!filterParametersInitialized_) {
+                    smoothedFilterLogCutoff_ = targetLogCutoff;
+                    smoothedFilterResonance_ = targetResonance;
+                    filterParametersInitialized_ = true;
+                } else {
+                    constexpr double smoothingTimeSeconds = 0.015;
+                    const auto smoothing = static_cast<float>(
+                        1.0 - std::exp(-8.0 / (currentSampleRate_ * smoothingTimeSeconds)));
+                    smoothedFilterLogCutoff_ +=
+                        smoothing * (targetLogCutoff - smoothedFilterLogCutoff_);
+                    smoothedFilterResonance_ +=
+                        smoothing * (targetResonance - smoothedFilterResonance_);
+                }
+                filter_.setParameters(std::exp2(smoothedFilterLogCutoff_),
+                                      smoothedFilterResonance_, filterType);
             }
 
             auto signal = oscillator1Sample * modulatedOscillator1Level
@@ -449,6 +495,11 @@ public:
                 const auto tineSample = musicBoxTine_.nextSample(
                     frequency, static_cast<float>(sampleRate));
                 signal = signal * (1.0f - musicBoxMix) + tineSample * musicBoxMix;
+            }
+            if (ancientMix > 0.0f) {
+                const auto ancientSample = ancientInstrument_.nextSample(
+                    frequency, static_cast<float>(sampleRate));
+                signal = signal * (1.0f - ancientMix) + ancientSample * ancientMix;
             }
             if (filterDrive > 0.0f) {
                 const auto drive = 1.0f + std::clamp(filterDrive, 0.0f, 1.0f) * 9.0f;
@@ -482,6 +533,7 @@ public:
         SynthesiserVoice::setCurrentPlaybackSampleRate(sampleRate);
         if (std::isfinite(sampleRate) && sampleRate > 0.0)
             currentSampleRate_ = sampleRate;
+        filterParametersInitialized_ = false;
         envelope_.setSampleRate(sampleRate);
         filterEnvelope_.setSampleRate(sampleRate);
         filter_.prepare(sampleRate);
@@ -531,12 +583,16 @@ private:
     pas1::dsp::Oscillator oscillator3_;
     pas1::dsp::Oscillator subOscillator_;
     pas1::dsp::MetallicTine musicBoxTine_;
+    pas1::dsp::AncientInstrumentVoice ancientInstrument_;
     pas1::dsp::AmpEnvelope envelope_;
     pas1::dsp::AmpEnvelope filterEnvelope_;
     pas1::dsp::StateVariableFilter filter_;
     std::array<pas1::dsp::LowFrequencyOscillator, 4> lfos_{};
     pas1::dsp::Portamento portamento_;
     double currentSampleRate_ = 44100.0;
+    float smoothedFilterLogCutoff_ = 10.0f;
+    float smoothedFilterResonance_ = 0.0f;
+    bool filterParametersInitialized_ = false;
     float velocity_ = 0.0f;
     float pitchBendRatio_ = 1.0f;
     float pitchBendNormalized_ = 0.0f;
@@ -812,251 +868,269 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
 
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID{"waveform", 1},
-        "Waveform",
-        juce::StringArray{"Sine", "Triangle", "Saw", "Square"},
+        "Форма волны",
+        juce::StringArray{"Синус", "Треугольник", "Пила", "Прямоугольник"},
         2));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"osc1level", 1}, "Osc 1 Level",
+        juce::ParameterID{"osc1level", 1}, "Уровень осц. 1",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.8f));
     layout.add(std::make_unique<juce::AudioParameterInt>(
-        juce::ParameterID{"osc1octave", 1}, "Osc 1 Octave", -3, 3, 0));
+        juce::ParameterID{"osc1octave", 1}, "Октава осц. 1", -3, 3, 0));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"osc1fine", 1}, "Osc 1 Fine Tune",
-        juce::NormalisableRange<float>{-100.0f, 100.0f, 0.1f}, 0.0f, " cents"));
+        juce::ParameterID{"osc1fine", 1}, "Точная настройка осц. 1",
+        juce::NormalisableRange<float>{-100.0f, 100.0f, 0.1f}, 0.0f, " центов"));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"osc1phase", 1}, "Osc 1 Phase",
+        juce::ParameterID{"osc1phase", 1}, "Фаза осц. 1",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"wavetablescan", 1}, "Wavetable Scan",
+        juce::ParameterID{"wavetablescan", 1}, "Позиция волновой таблицы",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
     layout.add(std::make_unique<juce::AudioParameterInt>(
-        juce::ParameterID{"unisonvoices", 1}, "Unison Voices", 1, 7, 1));
+        juce::ParameterID{"unisonvoices", 1}, "Голоса унисона", 1, 7, 1));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"unisondetune", 1}, "Unison Detune",
-        juce::NormalisableRange<float>{0.0f, 50.0f, 0.1f}, 12.0f, " cents"));
+        juce::ParameterID{"unisondetune", 1}, "Расстройка унисона",
+        juce::NormalisableRange<float>{0.0f, 50.0f, 0.1f}, 12.0f, " центов"));
     layout.add(std::make_unique<juce::AudioParameterChoice>(
-        juce::ParameterID{"osc2wave", 1}, "Osc 2 Waveform",
-        juce::StringArray{"Sine", "Triangle", "Saw", "Square"}, 0));
+        juce::ParameterID{"osc2wave", 1}, "Форма волны осц. 2",
+        juce::StringArray{"Синус", "Треугольник", "Пила", "Прямоугольник"}, 0));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"osc2level", 1}, "Osc 2 Level",
+        juce::ParameterID{"osc2level", 1}, "Уровень осц. 2",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.2f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"osc2detune", 1}, "Osc 2 Detune",
-        juce::NormalisableRange<float>{-100.0f, 100.0f, 0.1f}, 0.0f, " cents"));
+        juce::ParameterID{"osc2detune", 1}, "Расстройка осц. 2",
+        juce::NormalisableRange<float>{-100.0f, 100.0f, 0.1f}, 0.0f, " центов"));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"osc2phase", 1}, "Osc 2 Phase Offset",
+        juce::ParameterID{"osc2phase", 1}, "Смещение фазы осц. 2",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
     layout.add(std::make_unique<juce::AudioParameterBool>(
-        juce::ParameterID{"osc2sync", 1}, "Osc 2 Hard Sync", false));
+        juce::ParameterID{"osc2sync", 1}, "Жёсткая синхронизация осц. 2", false));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"fmamount", 1}, "FM Amount",
+        juce::ParameterID{"fmamount", 1}, "Глубина ЧМ",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"ringamount", 1}, "Ring Mod Amount",
+        juce::ParameterID{"ringamount", 1}, "Глубина кольцевой модуляции",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
     layout.add(std::make_unique<juce::AudioParameterChoice>(
-        juce::ParameterID{"osc3wave", 1}, "Osc 3 Waveform",
-        juce::StringArray{"Sine", "Triangle", "Saw", "Square"}, 1));
+        juce::ParameterID{"osc3wave", 1}, "Форма волны осц. 3",
+        juce::StringArray{"Синус", "Треугольник", "Пила", "Прямоугольник"}, 1));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"osc3level", 1}, "Osc 3 Level",
+        juce::ParameterID{"osc3level", 1}, "Уровень осц. 3",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"pulsewidth", 1}, "Pulse Width",
+        juce::ParameterID{"pulsewidth", 1}, "Ширина импульса",
         juce::NormalisableRange<float>{0.05f, 0.95f, 0.001f}, 0.5f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"sublevel", 1}, "Sub Level",
+        juce::ParameterID{"sublevel", 1}, "Уровень саб-низа",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"noiselevel", 1}, "Noise Level",
+        juce::ParameterID{"noiselevel", 1}, "Уровень шума",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"musicboxmix", 1}, "Music Box Tine Mix",
+        juce::ParameterID{"musicboxmix", 1}, "Уровень металлических язычков",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"musicboxbrightness", 1}, "Music Box Brightness",
+        juce::ParameterID{"musicboxbrightness", 1}, "Яркость металлических язычков",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.72f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"musicboxdecay", 1}, "Music Box Decay",
+        juce::ParameterID{"musicboxdecay", 1}, "Затухание металлических язычков",
         juce::NormalisableRange<float>{0.08f, 8.0f, 0.001f, 0.4f}, 1.4f, " s"));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"musicboxresonance", 1}, "Music Box Resonance",
+        juce::ParameterID{"musicboxresonance", 1}, "Резонанс металлических язычков",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.62f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"musicboxinharmonicity", 1}, "Music Box Inharmonicity",
+        juce::ParameterID{"musicboxinharmonicity", 1}, "Негармоничность обертонов",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.72f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"musicboxstrike", 1}, "Music Box Strike",
+        juce::ParameterID{"musicboxstrike", 1}, "Характер удара",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.58f));
     layout.add(std::make_unique<juce::AudioParameterChoice>(
-        juce::ParameterID{"filtertype", 1}, "Filter Type",
-        juce::StringArray{"Low-pass", "High-pass", "Band-pass", "Notch"}, 0));
+        juce::ParameterID{"ancientinstrument", 1}, "Древний инструмент",
+        juce::StringArray{"Выкл.", "Аулос", "Лира", "Бронзовый гонг", "Найденный металл"}, 0));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"filtercutoff", 1}, "Filter Cutoff",
+        juce::ParameterID{"ancientmix", 1}, "Уровень древнего тембра",
+        juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.78f));
+    layout.add(std::make_unique<Parameter>(
+        juce::ParameterID{"ancientbrightness", 1}, "Яркость древнего тембра",
+        juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.68f));
+    layout.add(std::make_unique<Parameter>(
+        juce::ParameterID{"ancientdecay", 1}, "Затухание древнего тембра",
+        juce::NormalisableRange<float>{0.08f, 20.0f, 0.001f, 0.4f}, 3.2f, " s"));
+    layout.add(std::make_unique<Parameter>(
+        juce::ParameterID{"ancientair", 1}, "Воздух / атака древнего тембра",
+        juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.42f));
+    layout.add(std::make_unique<Parameter>(
+        juce::ParameterID{"ancientdetune", 1}, "Расстройка трубок аулоса",
+        juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.32f));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID{"filtertype", 1}, "Тип фильтра",
+        juce::StringArray{"Низких частот", "Высоких частот", "Полосовой", "Режекторный"}, 0));
+    layout.add(std::make_unique<Parameter>(
+        juce::ParameterID{"filtercutoff", 1}, "Частота среза фильтра",
         juce::NormalisableRange<float>{20.0f, 20000.0f, 0.1f, 0.25f}, 18000.0f, " Hz"));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"filterresonance", 1}, "Filter Resonance",
+        juce::ParameterID{"filterresonance", 1}, "Резонанс фильтра",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.15f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"filterdrive", 1}, "Filter Drive",
+        juce::ParameterID{"filterdrive", 1}, "Насыщение фильтра",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"filterenvamount", 1}, "Filter Env Amount",
+        juce::ParameterID{"filterenvamount", 1}, "Глубина огибающей фильтра",
         juce::NormalisableRange<float>{-1.0f, 1.0f, 0.001f}, 0.0f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"filterkeytracking", 1}, "Filter Key Tracking",
+        juce::ParameterID{"filterkeytracking", 1}, "Отслеживание клавиатуры фильтром",
         juce::NormalisableRange<float>{-1.0f, 1.0f, 0.001f}, 0.0f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"filtervelocity", 1}, "Velocity to Filter",
+        juce::ParameterID{"filtervelocity", 1}, "Влияние скорости нажатия на фильтр",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"filtermodwheel", 1}, "Mod Wheel to Filter",
+        juce::ParameterID{"filtermodwheel", 1}, "Влияние колеса модуляции на фильтр",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"filterrandom", 1}, "Random per Note to Filter",
+        juce::ParameterID{"filterrandom", 1}, "Случайная модуляция фильтра для каждой ноты",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"filterattack", 1}, "Filter Attack",
+        juce::ParameterID{"filterattack", 1}, "Атака фильтра",
         juce::NormalisableRange<float>{0.001f, 5.0f, 0.001f, 0.35f}, 0.01f, " s"));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"filterdecay", 1}, "Filter Decay",
+        juce::ParameterID{"filterdecay", 1}, "Спад фильтра",
         juce::NormalisableRange<float>{0.001f, 5.0f, 0.001f, 0.35f}, 0.2f, " s"));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"filtersustain", 1}, "Filter Sustain",
+        juce::ParameterID{"filtersustain", 1}, "Удержание фильтра",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.75f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"filterrelease", 1}, "Filter Release",
+        juce::ParameterID{"filterrelease", 1}, "Затухание фильтра",
         juce::NormalisableRange<float>{0.01f, 10.0f, 0.001f, 0.35f}, 0.5f, " s"));
     for (int index = 0; index < 4; ++index) {
         const auto prefix = "lfo" + std::to_string(index + 1);
         layout.add(std::make_unique<Parameter>(
-            juce::ParameterID{prefix + "rate", 1}, "LFO " + juce::String(index + 1) + " Rate",
+            juce::ParameterID{prefix + "rate", 1}, "НЧ-генератор " + juce::String(index + 1) + " — скорость",
             juce::NormalisableRange<float>{0.01f, 20.0f, 0.001f, 0.35f},
             index == 0 ? 5.0f : 1.0f, " Hz"));
         layout.add(std::make_unique<Parameter>(
-            juce::ParameterID{prefix + "amount", 1}, "LFO " + juce::String(index + 1) + " Amount",
+            juce::ParameterID{prefix + "amount", 1}, "НЧ-генератор " + juce::String(index + 1) + " — глубина",
             juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
         layout.add(std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID{prefix + "wave", 1}, "LFO " + juce::String(index + 1) + " Waveform",
-            juce::StringArray{"Sine", "Triangle", "Saw", "Square", "Sample & Hold", "Random Smooth"}, 0));
+            juce::ParameterID{prefix + "wave", 1}, "НЧ-генератор " + juce::String(index + 1) + " — форма волны",
+            juce::StringArray{"Синус", "Треугольник", "Пила", "Прямоугольник", "Выборка и удержание", "Плавный случайный"}, 0));
         layout.add(std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID{prefix + "target", 1}, "LFO " + juce::String(index + 1) + " Destination",
-            juce::StringArray{"Off", "Pitch", "Filter Cutoff", "Osc 2 Level"}, 0));
+            juce::ParameterID{prefix + "target", 1}, "НЧ-генератор " + juce::String(index + 1) + " — цель",
+            juce::StringArray{"Выкл.", "Высота тона", "Частота среза фильтра", "Уровень осц. 2"}, 0));
         layout.add(std::make_unique<juce::AudioParameterBool>(
-            juce::ParameterID{prefix + "sync", 1}, "LFO " + juce::String(index + 1) + " Sync", false));
+            juce::ParameterID{prefix + "sync", 1}, "НЧ-генератор " + juce::String(index + 1) + " — синхронизация", false));
         layout.add(std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID{prefix + "division", 1}, "LFO " + juce::String(index + 1) + " Division",
+            juce::ParameterID{prefix + "division", 1}, "НЧ-генератор " + juce::String(index + 1) + " — деление",
             juce::StringArray{"1/1", "1/2", "1/4", "1/8", "1/16"}, 2));
         layout.add(std::make_unique<Parameter>(
-            juce::ParameterID{prefix + "phase", 1}, "LFO " + juce::String(index + 1) + " Phase",
+            juce::ParameterID{prefix + "phase", 1}, "НЧ-генератор " + juce::String(index + 1) + " — фаза",
             juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
         layout.add(std::make_unique<Parameter>(
-            juce::ParameterID{prefix + "fade", 1}, "LFO " + juce::String(index + 1) + " Fade-in",
+            juce::ParameterID{prefix + "fade", 1}, "НЧ-генератор " + juce::String(index + 1) + " — нарастание",
             juce::NormalisableRange<float>{0.0f, 10.0f, 0.001f, 0.35f}, 0.0f, " s"));
         layout.add(std::make_unique<juce::AudioParameterBool>(
-            juce::ParameterID{prefix + "retrigger", 1}, "LFO " + juce::String(index + 1) + " Retrigger",
+            juce::ParameterID{prefix + "retrigger", 1}, "НЧ-генератор " + juce::String(index + 1) + " — перезапуск",
             true));
     }
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"attack", 1}, "Attack",
+        juce::ParameterID{"attack", 1}, "Атака",
         juce::NormalisableRange<float>{0.001f, 5.0f, 0.001f, 0.35f}, 0.01f, "s"));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"decay", 1}, "Decay",
+        juce::ParameterID{"decay", 1}, "Спад",
         juce::NormalisableRange<float>{0.001f, 5.0f, 0.001f, 0.35f}, 0.2f, "s"));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"sustain", 1}, "Sustain",
+        juce::ParameterID{"sustain", 1}, "Удержание",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.75f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"release", 1}, "Release",
+        juce::ParameterID{"release", 1}, "Затухание",
         juce::NormalisableRange<float>{0.01f, 10.0f, 0.001f, 0.35f}, 0.5f, "s"));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"master", 1}, "Master",
+        juce::ParameterID{"master", 1}, "Общая громкость",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.75f));
     layout.add(std::make_unique<juce::AudioParameterInt>(
-        juce::ParameterID{"polyphony", 1}, "Voices", 1, kMaximumVoices, 16));
+        juce::ParameterID{"polyphony", 1}, "Число нот", 1, kMaximumVoices, 16));
     layout.add(std::make_unique<juce::AudioParameterChoice>(
-        juce::ParameterID{"voicemode", 1}, "Voice Mode",
-        juce::StringArray{"Poly", "Mono", "Legato"}, 0));
+        juce::ParameterID{"voicemode", 1}, "Режим голосов",
+        juce::StringArray{"Полифония", "Монофония", "Легато"}, 0));
     layout.add(std::make_unique<juce::AudioParameterBool>(
-        juce::ParameterID{"glideenabled", 1}, "Glide Enabled", false));
+        juce::ParameterID{"glideenabled", 1}, "Глиссандо включено", false));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"glidetime", 1}, "Glide Time",
+        juce::ParameterID{"glidetime", 1}, "Время глиссандо",
         juce::NormalisableRange<float>{0.001f, 2.0f, 0.001f, 0.4f}, 0.1f, " s"));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"morphx", 1}, "Morph X",
+        juce::ParameterID{"morphx", 1}, "Морфинг X",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"morphy", 1}, "Morph Y",
+        juce::ParameterID{"morphy", 1}, "Морфинг Y",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"stereowidth", 1}, "Stereo Width",
+        juce::ParameterID{"stereowidth", 1}, "Ширина стерео",
         juce::NormalisableRange<float>{0.0f, 2.0f, 0.001f}, 1.0f));
     layout.add(std::make_unique<juce::AudioParameterBool>(
-        juce::ParameterID{"distortionenabled", 1}, "Distortion Enabled", true));
+        juce::ParameterID{"distortionenabled", 1}, "Искажение включено", true));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"distortionmix", 1}, "Distortion Mix",
+        juce::ParameterID{"distortionmix", 1}, "Уровень искажения",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"distortiondrive", 1}, "Distortion Drive",
+        juce::ParameterID{"distortiondrive", 1}, "Насыщение искажения",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.25f));
     layout.add(std::make_unique<juce::AudioParameterBool>(
-        juce::ParameterID{"chorusenabled", 1}, "Chorus Enabled", false));
+        juce::ParameterID{"chorusenabled", 1}, "Хорус включён", false));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"chorusmix", 1}, "Chorus Mix",
+        juce::ParameterID{"chorusmix", 1}, "Уровень хоруса",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"chorusrate", 1}, "Chorus Rate",
+        juce::ParameterID{"chorusrate", 1}, "Скорость хоруса",
         juce::NormalisableRange<float>{0.01f, 8.0f, 0.001f, 0.35f}, 0.8f, " Hz"));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"chorusdepth", 1}, "Chorus Depth",
+        juce::ParameterID{"chorusdepth", 1}, "Глубина хоруса",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.5f));
     layout.add(std::make_unique<juce::AudioParameterBool>(
-        juce::ParameterID{"phaserenabled", 1}, "Phaser Enabled", false));
+        juce::ParameterID{"phaserenabled", 1}, "Фазер включён", false));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"phasermix", 1}, "Phaser Mix",
+        juce::ParameterID{"phasermix", 1}, "Уровень фазера",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"phaserrate", 1}, "Phaser Rate",
+        juce::ParameterID{"phaserrate", 1}, "Скорость фазера",
         juce::NormalisableRange<float>{0.01f, 8.0f, 0.001f, 0.35f}, 0.25f, " Hz"));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"phaserdepth", 1}, "Phaser Depth",
+        juce::ParameterID{"phaserdepth", 1}, "Глубина фазера",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.5f));
     layout.add(std::make_unique<juce::AudioParameterBool>(
-        juce::ParameterID{"delayenabled", 1}, "Delay Enabled", false));
+        juce::ParameterID{"delayenabled", 1}, "Задержка включена", false));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"delaymix", 1}, "Delay Mix",
+        juce::ParameterID{"delaymix", 1}, "Уровень задержки",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"delaytime", 1}, "Delay Time",
+        juce::ParameterID{"delaytime", 1}, "Время задержки",
         juce::NormalisableRange<float>{0.01f, 2.45f, 0.001f, 0.35f}, 0.35f, " s"));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"delayfeedback", 1}, "Delay Feedback",
+        juce::ParameterID{"delayfeedback", 1}, "Обратная связь задержки",
         juce::NormalisableRange<float>{0.0f, 0.92f, 0.001f}, 0.25f));
     layout.add(std::make_unique<juce::AudioParameterBool>(
-        juce::ParameterID{"reverbenabled", 1}, "Reverb Enabled", false));
+        juce::ParameterID{"reverbenabled", 1}, "Реверберация включена", false));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"reverbmix", 1}, "Reverb Mix",
+        juce::ParameterID{"reverbmix", 1}, "Уровень реверберации",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"reverbdecay", 1}, "Reverb Decay",
+        juce::ParameterID{"reverbdecay", 1}, "Затухание реверберации",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.5f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"reverbdamping", 1}, "Reverb Damping",
+        juce::ParameterID{"reverbdamping", 1}, "Демпфирование реверберации",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.5f));
     layout.add(std::make_unique<juce::AudioParameterBool>(
-        juce::ParameterID{"eqenabled", 1}, "EQ Enabled", false));
+        juce::ParameterID{"eqenabled", 1}, "Эквалайзер включён", false));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"eqmix", 1}, "EQ Mix",
+        juce::ParameterID{"eqmix", 1}, "Уровень эквалайзера",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 1.0f));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"eqlowgain", 1}, "EQ Low Gain",
+        juce::ParameterID{"eqlowgain", 1}, "Усиление низких частот",
         juce::NormalisableRange<float>{-12.0f, 12.0f, 0.1f}, 0.0f, " dB"));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"eqhighgain", 1}, "EQ High Gain",
+        juce::ParameterID{"eqhighgain", 1}, "Усиление высоких частот",
         juce::NormalisableRange<float>{-12.0f, 12.0f, 0.1f}, 0.0f, " dB"));
     layout.add(std::make_unique<juce::AudioParameterBool>(
-        juce::ParameterID{"limiterenabled", 1}, "Output Limiter Enabled", true));
+        juce::ParameterID{"limiterenabled", 1}, "Выходной лимитер включён", true));
     layout.add(std::make_unique<Parameter>(
-        juce::ParameterID{"limiterthreshold", 1}, "Limiter Threshold",
+        juce::ParameterID{"limiterthreshold", 1}, "Порог лимитера",
         juce::NormalisableRange<float>{0.5f, 0.999f, 0.001f}, 0.92f));
 
     juce::StringArray modulationSources;
@@ -1067,21 +1141,21 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
         modulationDestinations.add(name);
     for (std::size_t index = 0; index < pas1::dsp::ModulationMatrix::routeCount; ++index) {
         const auto prefix = "modroute" + std::to_string(index + 1);
-        const auto routeName = "Mod Route " + juce::String(static_cast<int>(index + 1));
+        const auto routeName = "Маршрут модуляции " + juce::String(static_cast<int>(index + 1));
         layout.add(std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID{prefix + "source", 1}, routeName + " Source",
+            juce::ParameterID{prefix + "source", 1}, routeName + " — источник",
             modulationSources, 0));
         layout.add(std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID{prefix + "destination", 1}, routeName + " Destination",
+            juce::ParameterID{prefix + "destination", 1}, routeName + " — цель",
             modulationDestinations, 0));
         layout.add(std::make_unique<Parameter>(
-            juce::ParameterID{prefix + "amount", 1}, routeName + " Amount",
+            juce::ParameterID{prefix + "amount", 1}, routeName + " — глубина",
             juce::NormalisableRange<float>{-1.0f, 1.0f, 0.001f}, 0.0f));
         layout.add(std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID{prefix + "polarity", 1}, routeName + " Polarity",
-            juce::StringArray{"Bipolar", "Unipolar"}, 0));
+            juce::ParameterID{prefix + "polarity", 1}, routeName + " — полярность",
+            juce::StringArray{"Биполярная", "Униполярная"}, 0));
         layout.add(std::make_unique<juce::AudioParameterBool>(
-            juce::ParameterID{prefix + "enabled", 1}, routeName + " Enabled", false));
+            juce::ParameterID{prefix + "enabled", 1}, routeName + " — включён", false));
     }
     return layout;
 }
@@ -1121,6 +1195,12 @@ Pas1AudioProcessor::Pas1AudioProcessor()
     engineParameters.musicBoxInharmonicity =
         parameters.getRawParameterValue("musicboxinharmonicity");
     engineParameters.musicBoxStrike = parameters.getRawParameterValue("musicboxstrike");
+    engineParameters.ancientInstrument = parameters.getRawParameterValue("ancientinstrument");
+    engineParameters.ancientMix = parameters.getRawParameterValue("ancientmix");
+    engineParameters.ancientBrightness = parameters.getRawParameterValue("ancientbrightness");
+    engineParameters.ancientDecay = parameters.getRawParameterValue("ancientdecay");
+    engineParameters.ancientAir = parameters.getRawParameterValue("ancientair");
+    engineParameters.ancientPipeDetune = parameters.getRawParameterValue("ancientdetune");
     engineParameters.filterType = parameters.getRawParameterValue("filtertype");
     engineParameters.filterCutoff = &morphValues[static_cast<std::size_t>(pas1::dsp::MorphParameter::filterCutoff)];
     engineParameters.filterResonance = &morphValues[static_cast<std::size_t>(pas1::dsp::MorphParameter::filterResonance)];
@@ -1392,7 +1472,7 @@ juce::AudioProcessorEditor* Pas1AudioProcessor::createEditor() {
 void Pas1AudioProcessor::getStateInformation(juce::MemoryBlock& destinationData) {
     auto state = parameters.copyState();
     writeMorphState(state);
-    state.setProperty("stateVersion", 7, nullptr);
+    state.setProperty("stateVersion", 9, nullptr);
     if (const auto xml = state.createXml())
         copyXmlToBinary(*xml, destinationData);
 }
@@ -1401,9 +1481,11 @@ void Pas1AudioProcessor::setStateInformation(const void* data, int sizeInBytes) 
     if (const auto xml = getXmlFromBinary(data, sizeInBytes)) {
         if (xml->hasTagName(parameters.state.getType())) {
             auto restoredState = juce::ValueTree::fromXml(*xml);
-            constexpr std::array<const char*, 6> newParameterIds{
+            constexpr std::array<const char*, 12> newParameterIds{
                 "musicboxmix", "musicboxbrightness", "musicboxdecay",
-                "musicboxresonance", "musicboxinharmonicity", "musicboxstrike"};
+                "musicboxresonance", "musicboxinharmonicity", "musicboxstrike",
+                "ancientinstrument", "ancientmix", "ancientbrightness",
+                "ancientdecay", "ancientair", "ancientdetune"};
             for (const auto* parameterId : newParameterIds) {
                 const juce::String id{parameterId};
                 if (restoredState.getChildWithProperty("id", id).isValid())
@@ -1418,7 +1500,20 @@ void Pas1AudioProcessor::setStateInformation(const void* data, int sizeInBytes) 
                     "value", parameter->getDefaultValue(), nullptr);
                 restoredState.addChild(migratedParameterState, -1, nullptr);
             }
-            restoredState.setProperty("stateVersion", 7, nullptr);
+            const auto previousStateVersion =
+                static_cast<int>(restoredState.getProperty("stateVersion", 0));
+            if (previousStateVersion < 9) {
+                auto resonanceState =
+                    restoredState.getChildWithProperty("id", "filterresonance");
+                if (resonanceState.isValid() && resonanceState.hasProperty("value")) {
+                    const auto legacyResonance =
+                        static_cast<float>(resonanceState.getProperty("value"));
+                    resonanceState.setProperty(
+                        "value", pas1::dsp::StateVariableFilter::migrateLegacyResonance(
+                                     legacyResonance), nullptr);
+                }
+            }
+            restoredState.setProperty("stateVersion", 9, nullptr);
             parameters.replaceState(restoredState);
             readMorphState(parameters.state);
         }
@@ -1508,9 +1603,9 @@ bool Pas1AudioProcessor::isMorphConfigured() const noexcept {
 
 juce::String Pas1AudioProcessor::getMorphParameterName(int parameter) {
     static const std::array<const char*, pas1::dsp::MorphMatrix::parameterCount> names{
-        "Osc 1 Mix", "Osc 2 Mix", "Osc 3 Mix", "Wavetable Scan", "Detune",
-        "Filter Cutoff", "Resonance", "Attack", "Release", "LFO Depth",
-        "FM Amount", "Filter Drive", "Distortion", "Stereo Width", "Reverb"};
+        "Ур. осц. 1", "Ур. осц. 2", "Ур. осц. 3", "Позиция волны", "Расстройка",
+        "Срез фильтра", "Резонанс", "Атака", "Затухание", "Глубина НЧГ",
+        "Глубина ЧМ", "Насыщ. фильтра", "Искажение", "Ширина стерео", "Реверберация"};
     if (parameter < 0 || parameter >= static_cast<int>(names.size()))
         return {};
     return names[static_cast<std::size_t>(parameter)];

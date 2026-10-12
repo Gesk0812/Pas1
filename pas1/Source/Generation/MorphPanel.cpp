@@ -45,13 +45,13 @@ void MorphPad::paint(juce::Graphics& graphics) {
 
     graphics.setFont(juce::FontOptions{12.0f, juce::Font::bold});
     graphics.setColour(text);
-    graphics.drawText("C · GLASS", area.getX() + 8.0f, area.getY() + 5.0f, 100.0f, 18.0f,
+    graphics.drawText("C · СТЕКЛО", area.getX() + 8.0f, area.getY() + 5.0f, 100.0f, 18.0f,
                       juce::Justification::topLeft);
-    graphics.drawText("D · PAD", area.getRight() - 108.0f, area.getY() + 5.0f, 100.0f, 18.0f,
+    graphics.drawText("D · ПЭД", area.getRight() - 108.0f, area.getY() + 5.0f, 100.0f, 18.0f,
                       juce::Justification::topRight);
-    graphics.drawText("A · SOFT BASS", area.getX() + 8.0f, area.getBottom() - 23.0f, 118.0f, 18.0f,
+    graphics.drawText("A · МЯГКИЙ БАС", area.getX() + 8.0f, area.getBottom() - 23.0f, 118.0f, 18.0f,
                       juce::Justification::bottomLeft);
-    graphics.drawText("B · DIGITAL BASS", area.getRight() - 138.0f, area.getBottom() - 23.0f, 130.0f, 18.0f,
+    graphics.drawText("B · ЦИФРОВОЙ БАС", area.getRight() - 138.0f, area.getBottom() - 23.0f, 130.0f, 18.0f,
                       juce::Justification::bottomRight);
 
     const auto x = processor_.parameters.getRawParameterValue("morphx")->load();
@@ -104,15 +104,15 @@ void MorphPad::updatePosition(juce::Point<float> position) {
 MorphPanel::MorphPanel(Pas1AudioProcessor& processor) : processor_(processor), pad(processor) {
     addAndMakeVisible(pad);
     const std::array<juce::String, 4> names{
-        "CAPTURE A · SOFT BASS", "CAPTURE B · DIGITAL BASS",
-        "CAPTURE C · GLASS", "CAPTURE D · PAD"};
+        "СОХРАНИТЬ A · БАС", "СОХРАНИТЬ B · БАС",
+        "СОХРАНИТЬ C · СТЕКЛО", "СОХРАНИТЬ D · ПЭД"};
     for (int index = 0; index < static_cast<int>(captureButtons.size()); ++index) {
         auto& button = captureButtons[static_cast<std::size_t>(index)];
         button.setButtonText(names[static_cast<std::size_t>(index)]);
         styleButton(button);
         button.onClick = [this, index] {
             processor_.captureMorphCorner(index);
-            status.setText("Captured corner " + juce::String(index + 1),
+            status.setText("Сохранён звук в углу " + juce::String(index + 1),
                            juce::dontSendNotification);
         };
         addAndMakeVisible(button);
@@ -120,7 +120,7 @@ MorphPanel::MorphPanel(Pas1AudioProcessor& processor) : processor_(processor), p
     styleButton(factoryButton);
     factoryButton.onClick = [this] {
         processor_.captureFactoryMorphCorners();
-        status.setText("Loaded factory corners: soft bass, digital bass, glass keys, and slow pad.",
+        status.setText("Загружены заводские углы: мягкий бас, цифровой бас, стекло и пэд.",
                        juce::dontSendNotification);
     };
     addAndMakeVisible(factoryButton);
@@ -128,7 +128,8 @@ MorphPanel::MorphPanel(Pas1AudioProcessor& processor) : processor_(processor), p
     randomizeButton.onClick = [this] {
         const auto seed = static_cast<std::uint32_t>(juce::Random::getSystemRandom().nextInt());
         processor_.randomizeMorphCorners(seed);
-        status.setText("Corner variations generated. The random seed is " + juce::String(static_cast<juce::int64>(seed)) + ".",
+        status.setText("Созданы вариации углов. Зерно: "
+                           + juce::String(static_cast<juce::int64>(seed)) + ".",
                        juce::dontSendNotification);
     };
     addAndMakeVisible(randomizeButton);
@@ -148,8 +149,8 @@ MorphPanel::MorphPanel(Pas1AudioProcessor& processor) : processor_(processor), p
     }
     status.setColour(juce::Label::textColourId, muted);
     status.setText(processor_.isMorphConfigured()
-                       ? "Morph Matrix active. X/Y are host-automatable, including with this window closed."
-                       : "Capture or load the four corners. X/Y are host-automatable, including with this window closed.",
+                        ? "Матрица морфинга активна. Параметры X/Y доступны для автоматизации и при закрытом окне."
+                        : "Сохраните или загрузите четыре угловых звука. X/Y доступны для автоматизации в хосте.",
                    juce::dontSendNotification);
     addAndMakeVisible(status);
 }

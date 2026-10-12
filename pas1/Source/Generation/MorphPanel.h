@@ -36,7 +36,7 @@ private:
     MorphPad pad;
     std::array<juce::TextButton, 4> captureButtons{};
     std::array<juce::ToggleButton, pas1::dsp::MorphMatrix::parameterCount> locks{};
-    juce::TextButton factoryButton{"FACTORY CORNERS"};
-    juce::TextButton randomizeButton{"MORPH RANDOMIZE"};
+    juce::TextButton factoryButton{"ЗАВОДСКИЕ УГЛЫ"};
+    juce::TextButton randomizeButton{"СЛУЧАЙНЫЕ ЗВУКИ"};
     juce::Label status;
 };

@@ -1,5 +1,7 @@
 #include "PresetManager.h"
 
+#include "../DSP/StateVariableFilter.h"
+
 #include <algorithm>
 #include <cmath>
 #include <iterator>
@@ -445,6 +447,42 @@ constexpr ParameterSetting orbitSweepSettings[]{
     {"decay", 1.3f}, {"sustain", 0.6f}, {"release", 2.6f},
     {"phaserenabled", 1}, {"phasermix", 0.26f}, {"reverbenabled", 1},
     {"reverbmix", 0.3f}, {"master", 0.46f}};
+constexpr ParameterSetting aulosPairSettings[]{
+    {"ancientinstrument", 1}, {"ancientmix", 0.92f}, {"ancientbrightness", 0.72f},
+    {"ancientdecay", 4.2f}, {"ancientair", 0.68f}, {"ancientdetune", 0.56f},
+    {"attack", 0.18f}, {"decay", 1.2f}, {"sustain", 0.82f}, {"release", 1.6f},
+    {"filtercutoff", 7200.0f}, {"reverbenabled", 1}, {"reverbmix", 0.3f},
+    {"reverbdecay", 0.72f}, {"master", 0.52f}};
+constexpr ParameterSetting lyrePluckSettings[]{
+    {"ancientinstrument", 2}, {"ancientmix", 0.94f}, {"ancientbrightness", 0.79f},
+    {"ancientdecay", 2.4f}, {"ancientair", 0.28f}, {"ancientdetune", 0.2f},
+    {"attack", 0.004f}, {"decay", 0.48f}, {"sustain", 0.16f}, {"release", 0.92f},
+    {"filtercutoff", 9800.0f}, {"reverbenabled", 1}, {"reverbmix", 0.22f},
+    {"reverbdecay", 0.58f}, {"master", 0.54f}};
+constexpr ParameterSetting bronzeOracleSettings[]{
+    {"ancientinstrument", 3}, {"ancientmix", 0.98f}, {"ancientbrightness", 0.56f},
+    {"ancientdecay", 11.5f}, {"ancientair", 0.78f}, {"ancientdetune", 0.3f},
+    {"attack", 0.006f}, {"decay", 1.7f}, {"sustain", 0.0f}, {"release", 4.2f},
+    {"filtercutoff", 6200.0f}, {"reverbenabled", 1}, {"reverbmix", 0.38f},
+    {"reverbdecay", 0.86f}, {"master", 0.48f}};
+constexpr ParameterSetting foundMetalSettings[]{
+    {"ancientinstrument", 4}, {"ancientmix", 0.9f}, {"ancientbrightness", 0.88f},
+    {"ancientdecay", 4.4f}, {"ancientair", 0.84f}, {"ancientdetune", 0.2f},
+    {"attack", 0.003f}, {"decay", 0.75f}, {"sustain", 0.08f}, {"release", 1.8f},
+    {"filtercutoff", 10500.0f}, {"reverbenabled", 1}, {"reverbmix", 0.28f},
+    {"reverbdecay", 0.7f}, {"master", 0.48f}};
+constexpr ParameterSetting sirenReedSettings[]{
+    {"ancientinstrument", 1}, {"ancientmix", 0.88f}, {"ancientbrightness", 0.82f},
+    {"ancientdecay", 3.2f}, {"ancientair", 0.82f}, {"ancientdetune", 0.72f},
+    {"attack", 0.32f}, {"decay", 1.8f}, {"sustain", 0.72f}, {"release", 2.8f},
+    {"filtercutoff", 8400.0f}, {"reverbenabled", 1}, {"reverbmix", 0.42f},
+    {"reverbdecay", 0.92f}, {"master", 0.46f}};
+constexpr ParameterSetting templeResonanceSettings[]{
+    {"ancientinstrument", 3}, {"ancientmix", 0.96f}, {"ancientbrightness", 0.44f},
+    {"ancientdecay", 16.0f}, {"ancientair", 0.48f}, {"ancientdetune", 0.24f},
+    {"attack", 0.12f}, {"decay", 2.0f}, {"sustain", 0.5f}, {"release", 5.0f},
+    {"filtercutoff", 5400.0f}, {"reverbenabled", 1}, {"reverbmix", 0.52f},
+    {"reverbdecay", 0.98f}, {"master", 0.44f}};
 
 const BuiltInPreset builtInPresets[]{
     {"Sub Bass", "Bass", subBassSettings, std::size(subBassSettings)},
@@ -510,7 +548,13 @@ const BuiltInPreset builtInPresets[]{
     {"Wooden Kalimba", "Pluck", woodenKalimbaSettings, std::size(woodenKalimbaSettings)},
     {"Chime Pluck", "Pluck", chimePluckSettings, std::size(chimePluckSettings)},
     {"Radio Dust", "FX", radioDustSettings, std::size(radioDustSettings)},
-    {"Orbit Sweep", "FX", orbitSweepSettings, std::size(orbitSweepSettings)}
+    {"Orbit Sweep", "FX", orbitSweepSettings, std::size(orbitSweepSettings)},
+    {"Aulos Pair", "Ancient", aulosPairSettings, std::size(aulosPairSettings)},
+    {"Ithacan Lyre", "Ancient", lyrePluckSettings, std::size(lyrePluckSettings)},
+    {"Bronze Oracle", "Ancient", bronzeOracleSettings, std::size(bronzeOracleSettings)},
+    {"Found Metal", "Ancient", foundMetalSettings, std::size(foundMetalSettings)},
+    {"Siren Reed", "Ancient", sirenReedSettings, std::size(sirenReedSettings)},
+    {"Temple Resonance", "Ancient", templeResonanceSettings, std::size(templeResonanceSettings)}
 };
 
 juce::String getDocumentText(const juce::var& document, const juce::Identifier& key) {
@@ -575,8 +619,13 @@ bool PresetManager::loadBuiltInPreset(int index) {
     const auto& preset = builtInPresets[index];
     for (std::size_t settingIndex = 0; settingIndex < preset.settingCount; ++settingIndex) {
         const auto& setting = preset.settings[settingIndex];
-        if (auto* parameter = parameters_.getParameter(setting.id))
-            parameter->setValueNotifyingHost(parameter->convertTo0to1(setting.value));
+        if (auto* parameter = parameters_.getParameter(setting.id)) {
+            const auto value = juce::String{setting.id} == "filterresonance"
+                                   ? pas1::dsp::StateVariableFilter::migrateLegacyResonance(
+                                         setting.value)
+                                   : setting.value;
+            parameter->setValueNotifyingHost(parameter->convertTo0to1(value));
+        }
     }
 
     // Factory presets contain no Morph Matrix state. Remove any prior user-captured
@@ -711,7 +760,7 @@ bool PresetManager::saveUserPreset(const juce::String& name, const juce::String&
 
     auto fileName = juce::File::createLegalFileName(name.trim());
     if (fileName.isEmpty()) {
-        error = "Enter a preset name.";
+        error = "Введите название пресета.";
         return false;
     }
     auto file = directory.getChildFile(fileName + ".pas1preset");
@@ -727,7 +776,7 @@ bool PresetManager::saveUserPreset(const juce::String& name, const juce::String&
 
 bool PresetManager::overwriteUserPreset(const juce::File& file, juce::String& error) const {
     if (!isUserPresetFile(file)) {
-        error = "Only presets in the PAS 1 user library can be updated.";
+        error = "Можно обновлять только пресеты из пользовательской библиотеки PAS 1.";
         return false;
     }
     juce::ValueTree unusedState;
@@ -741,13 +790,13 @@ bool PresetManager::overwriteUserPreset(const juce::File& file, juce::String& er
 bool PresetManager::duplicateBuiltInPreset(int index, const juce::String& newName,
                                            juce::File& duplicateFile, juce::String& error) const {
     if (index < 0 || index >= getBuiltInPresetCount()) {
-        error = "The selected built-in preset no longer exists.";
+        error = "Выбранный заводской пресет больше не существует.";
         return false;
     }
     const auto cleanName = newName.trim();
     const auto legalName = juce::File::createLegalFileName(cleanName);
     if (cleanName.isEmpty() || legalName.isEmpty()) {
-        error = "Enter a valid name for the duplicate.";
+        error = "Введите допустимое название копии.";
         return false;
     }
 
@@ -787,7 +836,7 @@ bool PresetManager::duplicateBuiltInPreset(int index, const juce::String& newNam
 bool PresetManager::duplicateUserPreset(const juce::File& source, const juce::String& newName,
                                         juce::File& duplicateFile, juce::String& error) const {
     if (!isUserPresetFile(source)) {
-        error = "Only presets in the PAS 1 user library can be duplicated here.";
+        error = "Здесь можно дублировать только пресеты из пользовательской библиотеки PAS 1.";
         return false;
     }
     juce::ValueTree state;
@@ -798,7 +847,7 @@ bool PresetManager::duplicateUserPreset(const juce::File& source, const juce::St
     const auto cleanName = newName.trim();
     const auto legalName = juce::File::createLegalFileName(cleanName);
     if (cleanName.isEmpty() || legalName.isEmpty()) {
-        error = "Enter a valid name for the duplicate.";
+        error = "Введите допустимое название копии.";
         return false;
     }
     auto target = getUserPresetDirectory().getChildFile(legalName + ".pas1preset");
@@ -813,7 +862,7 @@ bool PresetManager::duplicateUserPreset(const juce::File& source, const juce::St
 bool PresetManager::renameUserPreset(const juce::File& source, const juce::String& newName,
                                      juce::File& renamedFile, juce::String& error) const {
     if (!isUserPresetFile(source)) {
-        error = "Only presets in the PAS 1 user library can be renamed.";
+        error = "Можно переименовывать только пресеты из пользовательской библиотеки PAS 1.";
         return false;
     }
     juce::ValueTree state;
@@ -824,18 +873,18 @@ bool PresetManager::renameUserPreset(const juce::File& source, const juce::Strin
     const auto cleanName = newName.trim();
     const auto legalName = juce::File::createLegalFileName(cleanName);
     if (cleanName.isEmpty() || legalName.isEmpty()) {
-        error = "Enter a valid preset name.";
+        error = "Введите допустимое название пресета.";
         return false;
     }
     const auto target = getUserPresetDirectory().getChildFile(legalName + ".pas1preset");
     if (target != source && target.existsAsFile()) {
-        error = "A user preset with that file name already exists.";
+        error = "Пользовательский пресет с таким именем файла уже существует.";
         return false;
     }
     if (!writePresetFileFromState(target, cleanName, category, state, error))
         return false;
     if (target != source && !source.deleteFile()) {
-        error = "The renamed preset was written, but the old file could not be removed.";
+        error = "Переименованный пресет сохранён, но удалить старый файл не удалось.";
         return false;
     }
 
@@ -856,12 +905,12 @@ bool PresetManager::renameUserPreset(const juce::File& source, const juce::Strin
 
 bool PresetManager::deleteUserPreset(const juce::File& file, juce::String& error) const {
     if (!isUserPresetFile(file)) {
-        error = "Only presets in the PAS 1 user library can be deleted.";
+        error = "Можно удалять только пресеты из пользовательской библиотеки PAS 1.";
         return false;
     }
     const auto id = userPresetId(file);
     if (!file.deleteFile()) {
-        error = "Could not delete the selected preset file.";
+        error = "Не удалось удалить файл выбранного пресета.";
         return false;
     }
     auto favorites = getFavoritePresetIds();
@@ -883,11 +932,11 @@ bool PresetManager::exportPreset(const juce::File& destination, const juce::Stri
 bool PresetManager::exportUserPreset(const juce::File& source, const juce::File& destination,
                                      juce::String& error) const {
     if (!isUserPresetFile(source)) {
-        error = "Only presets from the PAS 1 user library can be exported directly.";
+        error = "Напрямую можно экспортировать только пресеты из пользовательской библиотеки PAS 1.";
         return false;
     }
     if (destination == juce::File{} || destination == source) {
-        error = "Choose a different destination file.";
+        error = "Выберите другой файл назначения.";
         return false;
     }
     juce::ValueTree unusedState;
@@ -896,7 +945,7 @@ bool PresetManager::exportUserPreset(const juce::File& source, const juce::File&
     if (!readPresetDocument(source, unusedState, name, category, error))
         return false;
     if (!source.copyFileTo(destination)) {
-        error = "Could not export the selected preset.";
+        error = "Не удалось экспортировать выбранный пресет.";
         return false;
     }
     return true;
@@ -909,6 +958,17 @@ bool PresetManager::loadPreset(const juce::File& file, juce::String& error) {
     if (!readPresetDocument(file, state, name, category, error))
         return false;
 
+    const auto stateVersion = static_cast<int>(state.getProperty("stateVersion", 0));
+    if (stateVersion < 9) {
+        auto resonanceState = state.getChildWithProperty("id", "filterresonance");
+        if (resonanceState.isValid() && resonanceState.hasProperty("value")) {
+            const auto legacyResonance = static_cast<float>(resonanceState.getProperty("value"));
+            resonanceState.setProperty(
+                "value", pas1::dsp::StateVariableFilter::migrateLegacyResonance(
+                             legacyResonance), nullptr);
+        }
+    }
+    state.setProperty("stateVersion", 9, nullptr);
     parameters_.replaceState(state);
     if (stateLoadedCallback_)
         stateLoadedCallback_();
@@ -934,7 +994,7 @@ bool PresetManager::importPreset(const juce::File& source, juce::File& importedF
     while (target.existsAsFile())
         target = target.getNonexistentSibling();
     if (!source.copyFileTo(target)) {
-        error = "Could not copy the preset into the user preset folder.";
+        error = "Не удалось скопировать пресет в папку пользовательских пресетов.";
         return false;
     }
     importedFile = target;
@@ -952,10 +1012,10 @@ bool PresetManager::makePresetDocumentFromState(const juce::ValueTree& sourceSta
                                                juce::String& document,
                                                juce::String& error) const {
     auto state = sourceState.createCopy();
-    state.setProperty("stateVersion", 3, nullptr);
+    state.setProperty("stateVersion", 9, nullptr);
     const auto xml = state.createXml();
     if (xml == nullptr) {
-        error = "Could not serialize the current synthesizer state.";
+        error = "Не удалось сохранить текущее состояние синтезатора.";
         return false;
     }
 
@@ -973,7 +1033,7 @@ bool PresetManager::readPresetDocument(const juce::File& file, juce::ValueTree& 
                                        juce::String& name, juce::String& category,
                                        juce::String& error) const {
     if (!file.existsAsFile() || file.getSize() > 1024 * 1024) {
-        error = "Preset file is missing or larger than 1 MB.";
+        error = "Файл пресета отсутствует или превышает 1 МБ.";
         return false;
     }
 
@@ -981,14 +1041,14 @@ bool PresetManager::readPresetDocument(const juce::File& file, juce::ValueTree& 
     if (!document.isObject()
         || getDocumentText(document, "format") != "PAS1Preset"
         || static_cast<int>(document.getProperty("schemaVersion", 0)) != 1) {
-        error = "This is not a supported PAS 1 preset file.";
+        error = "Формат файла пресета PAS 1 не поддерживается.";
         return false;
     }
 
     name = getDocumentText(document, "name");
     category = getDocumentText(document, "category");
     if (name.isEmpty()) {
-        error = "Preset file has no name.";
+        error = "В файле пресета не указано название.";
         return false;
     }
     return validateStateXml(getDocumentText(document, "stateXml"), state, error);
@@ -998,13 +1058,13 @@ bool PresetManager::validateStateXml(const juce::String& xmlText, juce::ValueTre
                                      juce::String& error) const {
     const auto xml = juce::XmlDocument::parse(xmlText);
     if (xml == nullptr || !xml->hasTagName(parameters_.state.getType())) {
-        error = "Preset contains invalid or incompatible synthesizer state.";
+        error = "Пресет содержит недопустимое или несовместимое состояние синтезатора.";
         return false;
     }
 
     auto candidate = juce::ValueTree::fromXml(*xml);
     if (!candidate.isValid()) {
-        error = "Preset state could not be read.";
+        error = "Не удалось прочитать состояние из пресета.";
         return false;
     }
     for (int index = 0; index < candidate.getNumChildren(); ++index) {
@@ -1021,7 +1081,7 @@ bool PresetManager::validateStateXml(const juce::String& xmlText, juce::ValueTre
         const auto& range = parameter->getNormalisableRange();
         if (!std::isfinite(value) || value < range.start - 1.0e-5f
             || value > range.end + 1.0e-5f) {
-            error = "Preset contains a parameter value outside its valid range.";
+            error = "В пресете найдено значение параметра за допустимыми пределами.";
             return false;
         }
     }
@@ -1042,12 +1102,12 @@ bool PresetManager::writePresetFileFromState(const juce::File& destination,
     juce::String document;
     if (name.isEmpty() || !makePresetDocumentFromState(state, name, category, document, error)) {
         if (error.isEmpty())
-            error = "Enter a preset name.";
+        error = "Введите название пресета.";
         return false;
     }
 
     if (!destination.replaceWithText(document)) {
-        error = "Could not write the preset file.";
+        error = "Не удалось записать файл пресета.";
         return false;
     }
     return true;

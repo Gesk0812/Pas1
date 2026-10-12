@@ -13,9 +13,42 @@ float unit(float value) noexcept {
 }
 
 std::string lowerCase(std::string text) {
-    std::transform(text.begin(), text.end(), text.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return text;
+    std::string result;
+    result.reserve(text.size());
+
+    for (std::size_t index = 0; index < text.size();) {
+        const auto first = static_cast<unsigned char>(text[index]);
+        if (first < 0x80) {
+            result.push_back(static_cast<char>(std::tolower(first)));
+            ++index;
+            continue;
+        }
+
+        if (first == 0xd0 && index + 1 < text.size()) {
+            const auto second = static_cast<unsigned char>(text[index + 1]);
+            if (second == 0x81) { // Ё -> ё
+                result.push_back(static_cast<char>(0xd1));
+                result.push_back(static_cast<char>(0x91));
+                index += 2;
+                continue;
+            }
+            if (second >= 0x90 && second <= 0xaf) { // А-Я -> а-я
+                if (second <= 0x9f) {
+                    result.push_back(static_cast<char>(0xd0));
+                    result.push_back(static_cast<char>(second + 0x20));
+                } else {
+                    result.push_back(static_cast<char>(0xd1));
+                    result.push_back(static_cast<char>(second - 0x20));
+                }
+                index += 2;
+                continue;
+            }
+        }
+
+        result.push_back(static_cast<char>(first));
+        ++index;
+    }
+    return result;
 }
 
 bool contains(const std::string& text, std::string_view word) {
@@ -73,6 +106,9 @@ bool isVariationTarget(std::string_view id) {
            || id == "musicboxdecay" || id == "musicboxresonance"
            || id == "musicboxinharmonicity"
            || id == "musicboxstrike"
+           || id == "ancientinstrument" || id == "ancientmix"
+           || id == "ancientbrightness" || id == "ancientdecay"
+           || id == "ancientair" || id == "ancientdetune"
            || id == "osc3wave" || id == "osc3level" || id == "pulsewidth"
            || id == "sublevel" || id == "noiselevel" || id == "filtertype"
            || id == "filtercutoff" || id == "filterresonance" || id == "filterdrive"
@@ -91,6 +127,9 @@ bool isTextureTarget(std::string_view id) {
            || id == "musicboxdecay" || id == "musicboxresonance"
            || id == "musicboxinharmonicity"
            || id == "musicboxstrike"
+           || id == "ancientinstrument" || id == "ancientmix"
+           || id == "ancientbrightness" || id == "ancientdecay"
+           || id == "ancientair" || id == "ancientdetune"
            || id == "filterresonance" || id == "filterdrive" || id == "pulsewidth"
            || startsWith(id, "chorus") || startsWith(id, "phaser")
            || startsWith(id, "delay") || startsWith(id, "reverb") || startsWith(id, "eq");
@@ -103,21 +142,21 @@ bool isTemporalTarget(std::string_view id) {
 }
 
 float categoryCenter(std::string_view id, const std::string& genre, std::uint32_t& randomState) {
-    if (contains(genre, "bass")) {
+    if (contains(genre, "bass") || contains(genre, "бас")) {
         if (id == "filtercutoff")
             return 0.34f + randomUnit(randomState) * 0.16f;
         if (id == "sublevel")
             return 0.52f + randomUnit(randomState) * 0.28f;
         if (id == "attack")
             return 0.02f + randomUnit(randomState) * 0.07f;
-    } else if (contains(genre, "pad")) {
+    } else if (contains(genre, "pad") || contains(genre, "пэд")) {
         if (id == "attack")
             return 0.18f + randomUnit(randomState) * 0.32f;
         if (id == "release")
             return 0.28f + randomUnit(randomState) * 0.32f;
         if (id == "reverbmix" || id == "chorusmix" || id == "stereowidth")
             return 0.28f + randomUnit(randomState) * 0.3f;
-    } else if (contains(genre, "lead")) {
+    } else if (contains(genre, "lead") || contains(genre, "лид")) {
         if (id == "filtercutoff")
             return 0.58f + randomUnit(randomState) * 0.28f;
         if (id == "attack")
@@ -133,7 +172,8 @@ bool SoundGenerator::belongsToSection(std::string_view id,
         case VariationSection::oscillators:
             return id == "waveform" || startsWith(id, "osc") || id == "wavetablescan"
                    || id == "unisonvoices" || id == "unisondetune" || id == "pulsewidth"
-                   || id == "sublevel" || id == "noiselevel" || startsWith(id, "musicbox");
+                   || id == "sublevel" || id == "noiselevel"
+                   || startsWith(id, "musicbox") || startsWith(id, "ancient");
         case VariationSection::filterAndEnvelope:
             return startsWith(id, "filter") || id == "attack" || id == "decay"
                    || id == "sustain" || id == "release";
@@ -163,28 +203,36 @@ std::vector<ParameterValue> SoundGenerator::createRecipe(
     auto complexity = unit(controls.harmonicComplexity);
     auto bassWeight = unit(controls.bassWeight);
     auto stereoWidth = unit(controls.stereoWidth);
+    int ancientMode = 0;
 
-    if (contains(text, "warm") || contains(text, "analog") || contains(text, "мягк")) {
+    if (contains(text, "warm") || contains(text, "analog") || contains(text, "мягк")
+        || contains(text, "тёпл") || contains(text, "тепл")) {
         character = std::max(character, 0.72f);
         brightness = std::min(brightness, 0.48f);
     }
-    if (contains(text, "bright") || contains(text, "glass") || contains(text, "светл")) {
+    if (contains(text, "bright") || contains(text, "glass") || contains(text, "светл")
+        || contains(text, "ярк")) {
         brightness = std::max(brightness, 0.78f);
         complexity = std::max(complexity, 0.58f);
     }
-    if (contains(text, "dark") || contains(text, "тёмн") || contains(text, "темн"))
+    if (contains(text, "dark") || contains(text, "тёмн") || contains(text, "темн")
+        || contains(text, "мрачн"))
         brightness = std::min(brightness, 0.28f);
-    if (contains(text, "evolving") || contains(text, "moving") || contains(text, "движ"))
+    if (contains(text, "evolving") || contains(text, "moving") || contains(text, "движ")
+        || contains(text, "развива") || contains(text, "эволюц"))
         movement = std::max(movement, 0.72f);
-    if (contains(text, "metallic") || contains(text, "metal"))
+    if (contains(text, "metallic") || contains(text, "metal") || contains(text, "металл"))
         complexity = std::max(complexity, 0.8f);
     if (contains(text, "aggressive") || contains(text, "агрессив") || contains(text, "злой"))
         aggression = std::max(aggression, 0.78f);
-    if (contains(text, "moderate distortion") || contains(text, "умерен") || contains(text, "distortion"))
+    if (contains(text, "moderate distortion") || contains(text, "умерен")
+        || contains(text, "distortion") || contains(text, "искаж")
+        || contains(text, "перегруз"))
         aggression = std::max(aggression, 0.48f);
     if (contains(text, "wide") || contains(text, "широк"))
         stereoWidth = std::max(stereoWidth, 0.78f);
-    if (contains(text, "spacious") || contains(text, "tail") || contains(text, "space"))
+    if (contains(text, "spacious") || contains(text, "tail") || contains(text, "space")
+        || contains(text, "простран"))
         space = std::max(space, 0.75f);
     if (contains(text, "bass") || contains(text, "бас"))
         bassWeight = std::max(bassWeight, 0.8f);
@@ -194,7 +242,8 @@ std::vector<ParameterValue> SoundGenerator::createRecipe(
         setRaw(result, "attack", 0.45f);
         setRaw(result, "release", 1.5f);
     }
-    if (contains(text, "pluck") || contains(text, "плик")) {
+    if (contains(text, "pluck") || contains(text, "plucked") || contains(text, "плик")
+        || contains(text, "щипк")) {
         setRaw(result, "attack", 0.003f);
         setRaw(result, "decay", 0.32f);
         setRaw(result, "sustain", 0.2f);
@@ -210,6 +259,26 @@ std::vector<ParameterValue> SoundGenerator::createRecipe(
         setRaw(result, "musicboxinharmonicity", 0.82f);
         setRaw(result, "musicboxstrike", 0.62f);
     }
+    const auto aulosRequested = contains(text, "aulos") || contains(text, "reed pipe")
+                               || contains(text, "аулос");
+    const auto lyreRequested = contains(text, "lyre") || contains(text, "lyra")
+                               || contains(text, "лир");
+    const auto foundMetalRequested = contains(text, "found metal")
+                                    || contains(text, "scrap metal")
+                                    || contains(text, "металлолом")
+                                    || contains(text, "обломки металла");
+    const auto gongRequested = contains(text, "gong") || contains(text, "bronze")
+                               || contains(text, "гонг") || contains(text, "бронз")
+                               || contains(text, "odyssey") || contains(text, "одиссея")
+                               || contains(text, "ancient") || contains(text, "древн");
+    if (aulosRequested)
+        ancientMode = 1;
+    else if (lyreRequested)
+        ancientMode = 2;
+    else if (foundMetalRequested)
+        ancientMode = 4;
+    else if (gongRequested)
+        ancientMode = 3;
 
     setRaw(result, "filtercutoff", blend(260.0f, 11000.0f, brightness));
     setRaw(result, "filterresonance", blend(0.12f, 0.62f, aggression));
@@ -241,6 +310,19 @@ std::vector<ParameterValue> SoundGenerator::createRecipe(
     setRaw(result, "delaymix", space * 0.24f);
     setRaw(result, "attack", blend(0.004f, 0.7f, movement) * (1.0f - aggression * 0.8f));
     setRaw(result, "release", blend(0.12f, 2.2f, space));
+    if (ancientMode > 0) {
+        setRaw(result, "ancientinstrument", static_cast<float>(ancientMode));
+        setRaw(result, "ancientmix", 0.88f);
+        setRaw(result, "ancientbrightness", blend(0.42f, 0.88f, brightness));
+        setRaw(result, "ancientdecay", blend(2.2f, 12.0f, space));
+        setRaw(result, "ancientair", blend(0.2f, 0.78f, complexity));
+        setRaw(result, "ancientdetune", aulosRequested ? 0.5f : 0.24f);
+        setRaw(result, "osc1level", 0.12f);
+        setRaw(result, "osc2level", 0.035f);
+        setRaw(result, "osc3level", 0.02f);
+        setRaw(result, "sublevel", 0.0f);
+        setRaw(result, "noiselevel", 0.0f);
+    }
 
     for (auto& parameter : result) {
         if (std::find(lockedParameters.begin(), lockedParameters.end(), parameter.id)

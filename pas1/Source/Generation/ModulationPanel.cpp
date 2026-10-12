@@ -19,14 +19,17 @@ ModulationPanel::RouteRow::RouteRow(juce::AudioProcessorValueTreeState& state,
                                     std::size_t routeIndex)
     : routeIndex_(routeIndex) {
     juce::StringArray sourceNames{
-        "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Amp Envelope", "Filter Envelope",
-        "Velocity", "Mod Wheel", "Pitch Bend", "Key Tracking", "Random per Note"};
+        "НЧ-ген. 1", "НЧ-ген. 2", "НЧ-ген. 3", "НЧ-ген. 4",
+        "Огиб. громкости", "Огиб. фильтра", "Скорость нажатия",
+        "Колесо модуляции", "Изгиб высоты", "Отслеж. клавиши", "Случайное на ноту"};
     juce::StringArray destinationNames{
-        "Pitch", "Osc 1 Level", "Wavetable Position", "Filter Cutoff", "Resonance",
-        "FM Amount", "Pan", "Distortion Mix", "Reverb Mix", "Morph X", "Morph Y"};
+        "Высота", "Ур. осц. 1", "Позиция волны", "Срез фильтра", "Резонанс",
+        "Глубина ЧМ", "Панорама", "Искажение", "Реверберация", "Морфинг X", "Морфинг Y"};
     source.addItemList(sourceNames, 1);
     destination.addItemList(destinationNames, 1);
-    polarity.addItemList({"Bipolar", "Unipolar"}, 1);
+    polarity.addItemList({"Биполярная", "Униполярная"}, 1);
+    source.setTooltip("Выберите источник сигнала: НЧ-генератор, огибающую, MIDI-контроллер или другие источники.");
+    destination.setTooltip("Выберите параметр синтезатора, на который действует источник модуляции.");
     for (auto* combo : {&source, &destination, &polarity}) {
         styleCombo(*combo);
         addAndMakeVisible(*combo);
@@ -40,13 +43,13 @@ ModulationPanel::RouteRow::RouteRow(juce::AudioProcessorValueTreeState& state,
     amount.setColour(juce::Slider::textBoxTextColourId, primaryText);
     amount.setColour(juce::Slider::textBoxBackgroundColourId, fieldBackground);
     amount.setColour(juce::Slider::textBoxOutlineColourId, juce::Colour{0xff745332});
-    amount.setTooltip("Modulation depth. Negative values invert the modulation.");
+    amount.setTooltip("Глубина модуляции. Отрицательное значение меняет её направление.");
     addAndMakeVisible(amount);
 
     enabled.setClickingTogglesState(true);
     enabled.setColour(juce::ToggleButton::textColourId, secondaryText);
     enabled.setColour(juce::ToggleButton::tickColourId, accent);
-    enabled.setTooltip("Enable or bypass this modulation route.");
+    enabled.setTooltip("Включает этот маршрут модуляции или обходит его.");
     addAndMakeVisible(enabled);
 
     const auto prefix = "modroute" + std::to_string(routeIndex_ + 1);
@@ -97,7 +100,7 @@ ModulationPanel::ModulationPanel(juce::AudioProcessorValueTreeState& state) {
     addAndMakeVisible(viewport);
 
     constexpr std::array<const char*, 6> headings{
-        "ROUTE", "SOURCE", "DESTINATION", "AMOUNT", "POLARITY", "ACTIVE"};
+        "№", "ИСТОЧНИК", "ЦЕЛЬ", "ГЛУБИНА", "ПОЛЯРНОСТЬ", "ВКЛ."};
     for (std::size_t index = 0; index < headings.size(); ++index) {
         auto& label = columnLabels[index];
         label.setText(headings[index], juce::dontSendNotification);

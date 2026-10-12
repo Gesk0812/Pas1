@@ -15,6 +15,7 @@ if(PAS1_BUILD_TESTS)
     add_executable(PAS1Tests
         Tests/CoreTests.cpp
         Source/DSP/Oscillator.cpp
+        Source/DSP/AncientInstrument.cpp
         Source/DSP/MetallicTine.cpp
         Source/DSP/AmpEnvelope.cpp
         Source/DSP/LowFrequencyOscillator.cpp
@@ -73,6 +74,7 @@ if(PAS1_BUILD_PLUGIN)
         Source/UI/ParameterPage.cpp
         Source/UI/SpectrumAnalyzer.cpp
         Source/DSP/Oscillator.cpp
+        Source/DSP/AncientInstrument.cpp
         Source/DSP/MetallicTine.cpp
         Source/DSP/AmpEnvelope.cpp
         Source/DSP/LowFrequencyOscillator.cpp
@@ -85,6 +87,7 @@ if(PAS1_BUILD_PLUGIN)
         Source/DSP/SoundDNA.cpp
         Source/Presets/PresetManager.cpp
         Source/Presets/PresetsPanel.cpp
+        Source/UI/ParameterGraphs.cpp
         Source/Generation/SoundGenerator.cpp
         Source/Generation/GeneratorPanel.cpp
         Source/Generation/MorphPanel.cpp

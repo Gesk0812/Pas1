@@ -50,26 +50,26 @@ private:
     juce::TextEditor lockedParameters;
     juce::ComboBox variationSelector;
     std::array<juce::TextButton, 4> sectionLockButtons{
-        juce::TextButton{"OSC"}, juce::TextButton{"FILTER"}, juce::TextButton{"MOD"},
-        juce::TextButton{"FX"}};
+        juce::TextButton{"ОСЦ."}, juce::TextButton{"ФИЛЬТР"}, juce::TextButton{"МОД."},
+        juce::TextButton{"ЭФФ."}};
     juce::Label amountLabel, modeLabel, seedLabel, lockedLabel, variationLabel;
     std::array<Slider, 9> controls{};
     std::array<juce::Label, 9> controlLabels{};
     std::array<juce::String, 9> controlNames{
-        "Character", "Brightness", "Density", "Movement", "Aggression",
-        "Space", "Harmonic", "Bass Weight", "Stereo Width"};
-    juce::TextButton recipeButton{"RECIPE PREVIEW"};
-    juce::TextButton variationButton{"VARIATION"};
-    juce::TextButton generateFourButton{"GENERATE 4"};
-    juce::TextButton generateSixteenButton{"GENERATE 16"};
-    juce::TextButton beforeAfterButton{"BEFORE / AFTER"};
-    juce::TextButton undoButton{"UNDO"};
-    juce::TextButton redoButton{"REDO"};
-    juce::TextButton keepButton{"KEEP"};
-    juce::TextButton revertButton{"REVERT"};
-    juce::TextButton applyButton{"APPLY"};
-    juce::TextButton saveRecipeButton{"SAVE RECIPE"};
-    juce::TextButton loadRecipeButton{"LOAD RECIPE"};
+        "Характер", "Яркость", "Плотность", "Движение", "Агрессивность",
+        "Пространство", "Гармоники", "Вес баса", "Ширина стерео"};
+    juce::TextButton recipeButton{"РЕЦЕПТ"};
+    juce::TextButton variationButton{"ВАРИАЦИЯ"};
+    juce::TextButton generateFourButton{"СОЗДАТЬ 4"};
+    juce::TextButton generateSixteenButton{"СОЗДАТЬ 16"};
+    juce::TextButton beforeAfterButton{"ДО / ПОСЛЕ"};
+    juce::TextButton undoButton{"ОТМЕНИТЬ"};
+    juce::TextButton redoButton{"ПОВТОРИТЬ"};
+    juce::TextButton keepButton{"ОСТАВИТЬ"};
+    juce::TextButton revertButton{"ВЕРНУТЬ"};
+    juce::TextButton applyButton{"ПРИМЕНИТЬ"};
+    juce::TextButton saveRecipeButton{"СОХРАНИТЬ РЕЦЕПТ"};
+    juce::TextButton loadRecipeButton{"ЗАГРУЗИТЬ РЕЦЕПТ"};
     juce::Label statusLabel;
     std::unique_ptr<juce::FileChooser> fileChooser;
     juce::ValueTree originalState;

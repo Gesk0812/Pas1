@@ -8,6 +8,7 @@
 #include "DSP/LowFrequencyOscillator.h"
 #include "DSP/Oscillator.h"
 #include "DSP/MetallicTine.h"
+#include "DSP/AncientInstrument.h"
 #include "DSP/StateVariableFilter.h"
 #include "DSP/WavetableOscillator.h"
 #include "Generation/SoundGenerator.h"
@@ -87,6 +88,55 @@ void testMetallicTine() {
            "invalid trigger frequency must leave the tine silent");
 }
 
+void testAncientInstrumentVoices() {
+    constexpr float sampleRate = 48000.0f;
+    constexpr std::array<pas1::dsp::AncientInstrument, 4> instruments{
+        pas1::dsp::AncientInstrument::aulos,
+        pas1::dsp::AncientInstrument::lyre,
+        pas1::dsp::AncientInstrument::bronzeGong,
+        pas1::dsp::AncientInstrument::foundMetal
+    };
+    std::array<std::array<float, 256>, instruments.size()> signatures{};
+
+    for (std::size_t instrumentIndex = 0; instrumentIndex < instruments.size();
+         ++instrumentIndex) {
+        pas1::dsp::AncientInstrumentVoice voice;
+        voice.trigger(instruments[instrumentIndex], 220.0f, sampleRate,
+                      0.7f, 2.6f, 0.55f, 0.4f,
+                      static_cast<std::uint32_t>(instrumentIndex + 11));
+        double energy = 0.0;
+        for (int sampleIndex = 0; sampleIndex < 4096; ++sampleIndex) {
+            const auto sample = voice.nextSample(220.0f, sampleRate);
+            expect(std::isfinite(sample), "ancient instrument samples must stay finite");
+            expect(std::abs(sample) <= 1.001f, "ancient instrument output must stay bounded");
+            energy += static_cast<double>(sample) * sample;
+            if (sampleIndex < static_cast<int>(signatures[instrumentIndex].size()))
+                signatures[instrumentIndex][static_cast<std::size_t>(sampleIndex)] = sample;
+        }
+        expect(energy > 0.01, "each ancient instrument must produce an audible signal");
+    }
+
+    for (std::size_t first = 0; first < signatures.size(); ++first) {
+        for (std::size_t second = first + 1; second < signatures.size(); ++second) {
+            double difference = 0.0;
+            for (std::size_t sample = 0; sample < signatures[first].size(); ++sample)
+                difference += std::abs(signatures[first][sample] - signatures[second][sample]);
+            expect(difference > 0.1, "ancient instrument timbres must be distinct");
+        }
+    }
+
+    pas1::dsp::AncientInstrumentVoice disabled;
+    disabled.trigger(pas1::dsp::AncientInstrument::off, 220.0f, sampleRate,
+                     0.7f, 2.6f, 0.55f, 0.4f, 1);
+    expect(disabled.nextSample(220.0f, sampleRate) == 0.0f,
+           "the off setting must remain silent");
+    disabled.trigger(pas1::dsp::AncientInstrument::lyre,
+                     std::numeric_limits<float>::quiet_NaN(), sampleRate,
+                     0.7f, 2.6f, 0.55f, 0.4f, 1);
+    expect(disabled.nextSample(220.0f, sampleRate) == 0.0f,
+           "invalid ancient instrument triggers must safely reset the voice");
+}
+
 void testEnvelope() {
     pas1::dsp::AmpEnvelope envelope;
     envelope.setSampleRate(1000.0);
@@ -114,6 +164,27 @@ void testEnvelope() {
     expect(std::abs(envelope.nextSample() - 0.8f) < 0.001f, "zero-length stages must advance safely");
     envelope.noteOff();
     expect(envelope.nextSample() == 0.0f, "zero-length release must stop immediately");
+
+    pas1::dsp::AmpEnvelope retriggered;
+    retriggered.setSampleRate(1000.0);
+    retriggered.setParameters({0.1f, 0.1f, 0.4f, 0.1f});
+    retriggered.noteOn();
+    for (int sample = 0; sample < 50; ++sample)
+        retriggered.nextSample();
+    expect(std::abs(retriggered.level() - 0.5f) < 0.02f,
+           "linear attack must reach the expected midpoint");
+    const auto levelAtRelease = retriggered.level();
+    retriggered.noteOff();
+    for (int sample = 0; sample < 50; ++sample)
+        retriggered.nextSample();
+    expect(std::abs(retriggered.level() - levelAtRelease * 0.5f) < 0.03f,
+           "release must decay from the note's current level");
+    expect(retriggered.isActive(), "release must stay active until its configured time ends");
+    retriggered.noteOn();
+    for (int sample = 0; sample < 50; ++sample)
+        retriggered.nextSample();
+    expect(std::abs(retriggered.level() - 0.5f) < 0.02f,
+           "a retrigger during release must begin a fresh attack");
 }
 
 void testWavetableOscillator() {
@@ -141,10 +212,69 @@ void testWavetableOscillator() {
         scanDifference += std::abs(base - scanned);
     }
     expect(scanDifference > 100.0, "wavetable scan must crossfade to a different table");
+
+    for (const auto waveform : {pas1::dsp::Waveform::sine, pas1::dsp::Waveform::triangle,
+                                pas1::dsp::Waveform::saw, pas1::dsp::Waveform::square}) {
+        pas1::dsp::WavetableOscillator nearNyquist;
+        for (int sample = 0; sample < 4096; ++sample) {
+            const auto value = nearNyquist.nextSample(
+                sampleRate * 0.42f, sampleRate, waveform, 0.5f);
+            expect(std::isfinite(value) && std::abs(value) <= 1.05f,
+                   "high-pitch wavetable playback must remain finite and bounded");
+        }
+    }
+
+    constexpr std::size_t fftSize = 4096;
+    constexpr int fundamentalBin = 1700;
+    const auto highFrequency = sampleRate * static_cast<float>(fundamentalBin)
+                               / static_cast<float>(fftSize);
+    pas1::dsp::WavetableOscillator bandLimitedSaw;
+    std::array<float, fftSize> highPitchSamples{};
+    for (auto& sample : highPitchSamples)
+        sample = bandLimitedSaw.nextSample(
+            highFrequency, sampleRate, pas1::dsp::Waveform::saw, 0.0f);
+    const auto binMagnitude = [&highPitchSamples](int bin) {
+        double real = 0.0;
+        double imaginary = 0.0;
+        for (std::size_t sample = 0; sample < highPitchSamples.size(); ++sample) {
+            const auto phase = 2.0 * 3.14159265358979323846 * bin * sample
+                               / static_cast<double>(highPitchSamples.size());
+            real += highPitchSamples[sample] * std::cos(phase);
+            imaginary -= highPitchSamples[sample] * std::sin(phase);
+        }
+        return static_cast<float>(2.0 * std::hypot(real, imaginary)
+                                  / static_cast<double>(highPitchSamples.size()));
+    };
+    const auto fundamentalMagnitude = binMagnitude(fundamentalBin);
+    const auto secondHarmonicAliasMagnitude = binMagnitude(
+        static_cast<int>(fftSize) - fundamentalBin * 2);
+    expect(fundamentalMagnitude > 0.2f,
+           "near-Nyquist saw playback must retain its fundamental");
+    expect(secondHarmonicAliasMagnitude < fundamentalMagnitude * 0.1f,
+           "wavetable mip selection must suppress folded high harmonics near Nyquist");
 }
 
 void testFilter() {
     constexpr float sampleRate = 48000.0f;
+    const auto measureGain = [sampleRate](float cutoff, float resonance,
+                                          pas1::dsp::FilterType type, float frequency) {
+        pas1::dsp::StateVariableFilter filter;
+        filter.prepare(sampleRate);
+        filter.setParameters(cutoff, resonance, type);
+        const auto period = std::max(1, static_cast<int>(std::lround(sampleRate / frequency)));
+        const auto warmupSamples = std::max(4096, period * 8);
+        const auto measureSamples = period * 4;
+        double squareSum = 0.0;
+        for (int sample = 0; sample < warmupSamples + measureSamples; ++sample) {
+            const auto input = std::sin(2.0 * 3.14159265358979323846
+                                        * frequency * sample / sampleRate);
+            const auto output = filter.processSample(static_cast<float>(input));
+            if (sample >= warmupSamples)
+                squareSum += static_cast<double>(output) * output;
+        }
+        return static_cast<float>(std::sqrt(2.0 * squareSum / measureSamples));
+    };
+
     for (const auto type : {pas1::dsp::FilterType::lowPass, pas1::dsp::FilterType::highPass,
                             pas1::dsp::FilterType::bandPass, pas1::dsp::FilterType::notch}) {
         pas1::dsp::StateVariableFilter filter;
@@ -175,6 +305,46 @@ void testFilter() {
     }
     expect(highPassEnergy > lowPassEnergy * 4.0,
            "high-pass filter must attenuate a high-frequency tone less than low-pass");
+
+    const auto lowPassAtCutoff = measureGain(1200.0f, 0.0f,
+        pas1::dsp::FilterType::lowPass, 1200.0f);
+    const auto highPassAtCutoff = measureGain(1200.0f, 0.0f,
+        pas1::dsp::FilterType::highPass, 1200.0f);
+    const auto bandPassAtCutoff = measureGain(1200.0f, 0.0f,
+        pas1::dsp::FilterType::bandPass, 1200.0f);
+    const auto notchAtCutoff = measureGain(1200.0f, 0.0f,
+        pas1::dsp::FilterType::notch, 1200.0f);
+    expect(std::abs(lowPassAtCutoff - 0.7071f) < 0.035f,
+           "zero resonance low-pass must have a Butterworth-like cutoff response");
+    expect(std::abs(highPassAtCutoff - 0.7071f) < 0.035f,
+           "zero resonance high-pass must have a Butterworth-like cutoff response");
+    expect(std::abs(bandPassAtCutoff - 0.7071f) < 0.035f,
+           "zero resonance band-pass must have a controlled center response");
+    expect(notchAtCutoff < 0.02f,
+           "notch filter must strongly cancel the cutoff frequency");
+
+    constexpr std::array<float, 6> resonanceSteps{0.0f, 0.1f, 0.25f, 0.5f, 0.75f, 1.0f};
+    float previousGain = 0.0f;
+    for (const auto resonance : resonanceSteps) {
+        const auto q = pas1::dsp::StateVariableFilter::resonanceToQ(resonance);
+        const auto gain = measureGain(1200.0f, resonance,
+            pas1::dsp::FilterType::lowPass, 1200.0f);
+        expect(std::isfinite(q) && q >= 0.707f && q <= 12.001f,
+               "resonance-to-Q mapping must remain within its stable bounds");
+        expect(gain > previousGain,
+               "increasing resonance must produce a progressively stronger cutoff peak");
+        previousGain = gain;
+    }
+    expect(std::abs(previousGain - 12.0f) < 0.2f,
+           "maximum resonance must remain strong and finite");
+
+    for (const auto legacyValue : {0.0f, 0.1f, 0.25f, 0.5f, 0.75f, 0.99f, 1.0f}) {
+        const auto oldQ = 0.5f + std::clamp(legacyValue, 0.1f, 0.99f) * 11.5f;
+        const auto migrated = pas1::dsp::StateVariableFilter::migrateLegacyResonance(legacyValue);
+        const auto restoredQ = pas1::dsp::StateVariableFilter::resonanceToQ(migrated);
+        expect(std::abs(oldQ - restoredQ) < 0.002f,
+               "legacy resonance migration must preserve the previous filter Q");
+    }
 }
 
 void testLfo() {
@@ -229,6 +399,73 @@ void testEffects() {
            "enabled output limiter must softly contain peaks");
     expect(pas1::dsp::EffectsChain::limitSample(4.0f, false, 0.9f) == 1.0f,
            "disabled limiter must still protect the output from hard overflow");
+
+    for (int effectIndex = 0; effectIndex < 6; ++effectIndex) {
+        for (int bypassMode = 0; bypassMode < 2; ++bypassMode) {
+            pas1::dsp::EffectsChain bypassChain;
+            bypassChain.prepare(sampleRate);
+            std::array<float, 256> dryLeft{};
+            std::array<float, 256> dryRight{};
+            std::array<float, 256> wetLeft{};
+            std::array<float, 256> wetRight{};
+            for (std::size_t sample = 0; sample < dryLeft.size(); ++sample) {
+                const auto value = 0.35f * std::sin(
+                    2.0 * 3.14159265358979323846 * 317.0 * sample / sampleRate)
+                    + 0.05f * std::cos(
+                        2.0 * 3.14159265358979323846 * 83.0 * sample / sampleRate);
+                dryLeft[sample] = dryRight[sample] = value;
+                wetLeft[sample] = wetRight[sample] = value;
+            }
+            float* bypassChannels[] = {wetLeft.data(), wetRight.data()};
+            pas1::dsp::EffectsParameters bypassParameters;
+            bypassParameters.distortionEnabled = false;
+            bypassParameters.chorusEnabled = false;
+            bypassParameters.phaserEnabled = false;
+            bypassParameters.delayEnabled = false;
+            bypassParameters.reverbEnabled = false;
+            bypassParameters.eqEnabled = false;
+            bypassParameters.limiterEnabled = false;
+            bypassParameters.stereoWidth = 1.0f;
+
+            const auto effectEnabled = bypassMode == 0;
+            const auto mix = effectEnabled ? 0.0f : 1.0f;
+            switch (effectIndex) {
+                case 0:
+                    bypassParameters.distortionEnabled = effectEnabled;
+                    bypassParameters.distortionMix = mix;
+                    break;
+                case 1:
+                    bypassParameters.chorusEnabled = effectEnabled;
+                    bypassParameters.chorusMix = mix;
+                    break;
+                case 2:
+                    bypassParameters.phaserEnabled = effectEnabled;
+                    bypassParameters.phaserMix = mix;
+                    break;
+                case 3:
+                    bypassParameters.delayEnabled = effectEnabled;
+                    bypassParameters.delayMix = mix;
+                    break;
+                case 4:
+                    bypassParameters.reverbEnabled = effectEnabled;
+                    bypassParameters.reverbMix = mix;
+                    break;
+                case 5:
+                    bypassParameters.eqEnabled = effectEnabled;
+                    bypassParameters.eqMix = mix;
+                    break;
+                default: break;
+            }
+
+            bypassChain.process(bypassChannels, 2, static_cast<int>(wetLeft.size()),
+                                bypassParameters);
+            for (std::size_t sample = 0; sample < wetLeft.size(); ++sample) {
+                expect(std::abs(wetLeft[sample] - dryLeft[sample]) < 1.0e-5f
+                           && std::abs(wetRight[sample] - dryRight[sample]) < 1.0e-5f,
+                       "effect bypass and zero-wet settings must preserve the dry signal");
+            }
+        }
+    }
 
     pas1::dsp::EffectsChain widthEffects;
     widthEffects.prepare(sampleRate);
@@ -499,6 +736,47 @@ void testSoundGenerator() {
     expect(findMusicBoxValue(musicBoxRecipe, "musicboxinharmonicity")->normalizedValue
                > findMusicBoxValue(musicBoxBase, "musicboxinharmonicity")->normalizedValue,
            "music-box recipe should raise the inharmonic tine character");
+    const std::vector<ParameterValue> ancientBase{
+        {"ancientinstrument", 0.0f, 0.0f, 0.0f, 4.0f, 1.0f, 5, true},
+        {"ancientmix", 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0, false},
+        {"ancientbrightness", 0.68f, 0.68f, 0.0f, 1.0f, 1.0f, 0, false},
+        {"ancientdecay", 3.2f, 0.16f, 0.08f, 20.0f, 0.4f, 0, false},
+        {"ancientair", 0.42f, 0.42f, 0.0f, 1.0f, 1.0f, 0, false},
+        {"ancientdetune", 0.32f, 0.32f, 0.0f, 1.0f, 1.0f, 0, false}};
+    const auto ancientRecipe = pas1::generation::SoundGenerator::createRecipe(
+        ancientBase, "Aulos reed drone", controls);
+    expect(std::abs(findValue(ancientRecipe, "ancientinstrument")->normalizedValue - 0.25f)
+               < 0.001f,
+           "aulos recipe must select the paired-reed instrument");
+    expect(findValue(ancientRecipe, "ancientmix")->normalizedValue > 0.8f,
+           "ancient instrument recipes must bring the modeled voice forward");
+    const auto lyreRecipe = pas1::generation::SoundGenerator::createRecipe(
+        ancientBase, "ancient lyre", controls);
+    expect(std::abs(findValue(lyreRecipe, "ancientinstrument")->normalizedValue - 0.5f)
+               < 0.001f,
+           "lyre keywords must select the plucked-string voice");
+    const auto uppercaseAulosRecipe = pas1::generation::SoundGenerator::createRecipe(
+        ancientBase, "АУЛОС", controls);
+    expect(std::abs(findValue(uppercaseAulosRecipe, "ancientinstrument")->normalizedValue - 0.25f)
+               < 0.001f,
+           "uppercase Russian instrument names must be recognized");
+    const auto bronzeGongRecipe = pas1::generation::SoundGenerator::createRecipe(
+        ancientBase, "БРОНЗОВЫЙ ГОНГ", controls);
+    expect(std::abs(findValue(bronzeGongRecipe, "ancientinstrument")->normalizedValue - 0.75f)
+               < 0.001f,
+           "uppercase Russian gong descriptions must select the bronze gong");
+    const auto russianWarmBassRecipe = pas1::generation::SoundGenerator::createRecipe(
+        base, "ТЁПЛЫЙ БАС", controls);
+    expect(findValue(russianWarmBassRecipe, "sublevel")->normalizedValue > 0.0f,
+           "uppercase Russian warm-bass prompts must affect bass parameters");
+    const auto englishBassVariation = pas1::generation::SoundGenerator::createVariation(
+        base, pas1::generation::VariationMode::genre, 0.8f, 24680u, {}, "bass");
+    const auto russianBassVariation = pas1::generation::SoundGenerator::createVariation(
+        base, pas1::generation::VariationMode::genre, 0.8f, 24680u, {}, "БАС");
+    expect(std::abs(findValue(englishBassVariation, "sublevel")->normalizedValue
+                    - findValue(russianBassVariation, "sublevel")->normalizedValue)
+               < 0.001f,
+           "Russian genre hints must work like their English equivalents");
     const std::vector<std::string> lockedTine{"musicboxmix"};
     const auto lockedMusicBoxRecipe = pas1::generation::SoundGenerator::createRecipe(
         musicBoxBase, "music box", controls, lockedTine);
@@ -513,6 +791,9 @@ void testSoundGenerator() {
     expect(pas1::generation::SoundGenerator::belongsToSection(
                "musicboxdecay", pas1::generation::VariationSection::oscillators),
            "music-box tine controls must belong to the oscillator lock section");
+    expect(pas1::generation::SoundGenerator::belongsToSection(
+               "ancientmix", pas1::generation::VariationSection::oscillators),
+           "ancient-instrument controls must belong to the oscillator lock section");
     expect(pas1::generation::SoundGenerator::belongsToSection(
                "filtercutoff", pas1::generation::VariationSection::filterAndEnvelope),
            "filter controls must belong to the filter lock section");
@@ -581,6 +862,7 @@ void testSampleRateAndBlockStress() {
 int main() {
     testOscillator();
     testMetallicTine();
+    testAncientInstrumentVoices();
     testEnvelope();
     testWavetableOscillator();
     testFilter();
