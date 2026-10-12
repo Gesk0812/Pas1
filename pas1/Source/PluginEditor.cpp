@@ -1,8 +1,11 @@
 #include "PluginEditor.h"
+#include "Diagnostics/StartupTrace.h"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdio>
+#include <string>
 #include <utility>
 
 namespace {
@@ -34,6 +37,7 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     : AudioProcessorEditor(&processor),
       processor_(processor),
       keyboard(processor.keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard) {
+    pas1::diagnostics::startupTrace("editor.constructor.begin");
     setResizable(true, true);
     setResizeLimits(980, 610, 1440, 1100);
     setLookAndFeel(nullptr);
@@ -64,13 +68,16 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     glideEnabled.setTooltip("Slide between successive note pitches.");
     glideTime.setTooltip("Portamento duration for each pitch transition.");
 
+    pas1::diagnostics::startupTrace("editor.genericEditor.before");
     engineEditor = std::make_unique<juce::GenericAudioProcessorEditor>(processor_);
+    pas1::diagnostics::startupTrace("editor.genericEditor.created");
     addAndMakeVisible(*engineEditor);
     engineEditor->setVisible(false);
     const auto makePage = [this](const juce::String& title,
                                  std::vector<ParameterPageGroup> groups) {
         return std::make_unique<ParameterPage>(processor_.parameters, title, std::move(groups));
     };
+    pas1::diagnostics::startupTrace("editor.oscillatorPage.before");
     oscillatorPage = makePage("OSCILLATORS", {
         {"OSCILLATOR 1", {"waveform", "osc1level", "osc1octave", "osc1fine",
                           "osc1phase", "wavetablescan", "unisonvoices", "unisondetune"}},
@@ -79,8 +86,10 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
         {"OSCILLATOR 3, SUB & NOISE", {"osc3wave", "osc3level", "pulsewidth",
                                        "sublevel", "noiselevel"}}
     });
+    pas1::diagnostics::startupTrace("editor.oscillatorPage.created");
     addAndMakeVisible(*oscillatorPage);
     oscillatorPage->setVisible(false);
+    pas1::diagnostics::startupTrace("editor.filterPage.before");
     filterPage = makePage("FILTERS & ENVELOPES", {
         {"FILTER", {"filtertype", "filtercutoff", "filterresonance", "filterdrive"}},
         {"FILTER MODULATION", {"filterenvamount", "filterkeytracking", "filtervelocity",
@@ -88,6 +97,7 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
         {"FILTER ENVELOPE", {"filterattack", "filterdecay", "filtersustain", "filterrelease"}},
         {"AMPLITUDE ENVELOPE", {"attack", "decay", "sustain", "release"}}
     });
+    pas1::diagnostics::startupTrace("editor.filterPage.created");
     addAndMakeVisible(*filterPage);
     filterPage->setVisible(false);
     std::vector<ParameterPageGroup> lfoGroups;
@@ -100,7 +110,10 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
              prefix + "retrigger"}
         });
     }
+    pas1::diagnostics::startupTrace("editor.lfoPage.before");
     lfoPage = makePage("LFO MODULATION", std::move(lfoGroups));
+    pas1::diagnostics::startupTrace("editor.lfoPage.created");
+    pas1::diagnostics::startupTrace("editor.effectsPage.before");
     effectsPage = makePage("EFFECTS", {
         {"DISTORTION", {"distortionenabled", "distortionmix", "distortiondrive"}},
         {"CHORUS", {"chorusenabled", "chorusmix", "chorusrate", "chorusdepth"}},
@@ -110,31 +123,46 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
         {"EQ & OUTPUT", {"eqenabled", "eqmix", "eqlowgain", "eqhighgain",
                          "limiterenabled", "limiterthreshold", "stereowidth"}}
     });
+    pas1::diagnostics::startupTrace("editor.effectsPage.created");
     addAndMakeVisible(*effectsPage);
     effectsPage->setVisible(false);
+    pas1::diagnostics::startupTrace("editor.settingsPage.before");
     settingsPage = makePage("SETTINGS & PERFORMANCE", {
         {"VOICE", {"polyphony", "voicemode", "glideenabled", "glidetime"}},
         {"OUTPUT", {"master", "limiterenabled", "limiterthreshold"}},
         {"HOST AUTOMATION", {"morphx", "morphy"}}
     });
+    pas1::diagnostics::startupTrace("editor.settingsPage.created");
     addAndMakeVisible(*settingsPage);
     settingsPage->setVisible(false);
+    pas1::diagnostics::startupTrace("editor.spectrumAnalyzer.before");
     spectrumAnalyzer = std::make_unique<SpectrumAnalyzer>(processor_);
+    pas1::diagnostics::startupTrace("editor.spectrumAnalyzer.created");
     addAndMakeVisible(*spectrumAnalyzer);
     spectrumAnalyzer->setVisible(true);
+    pas1::diagnostics::startupTrace("editor.generatorPanel.before");
     generatorPanel = std::make_unique<GeneratorPanel>(processor_);
+    pas1::diagnostics::startupTrace("editor.generatorPanel.created");
     addAndMakeVisible(*generatorPanel);
     generatorPanel->setVisible(false);
+    pas1::diagnostics::startupTrace("editor.morphPanel.before");
     morphPanel = std::make_unique<MorphPanel>(processor_);
+    pas1::diagnostics::startupTrace("editor.morphPanel.created");
     addAndMakeVisible(*morphPanel);
     morphPanel->setVisible(false);
+    pas1::diagnostics::startupTrace("editor.soundDNAPanel.before");
     soundDNAPanel = std::make_unique<SoundDNAPanel>(processor_);
+    pas1::diagnostics::startupTrace("editor.soundDNAPanel.created");
     addAndMakeVisible(*soundDNAPanel);
     soundDNAPanel->setVisible(false);
+    pas1::diagnostics::startupTrace("editor.presetsPanel.before");
     presetsPanel = std::make_unique<PresetsPanel>(processor_);
+    pas1::diagnostics::startupTrace("editor.presetsPanel.created");
     addAndMakeVisible(*presetsPanel);
     presetsPanel->setVisible(false);
+    pas1::diagnostics::startupTrace("editor.modulationPanel.before");
     modulationPanel = std::make_unique<ModulationPanel>(processor_.parameters);
+    pas1::diagnostics::startupTrace("editor.modulationPanel.created");
     modulationTabs = std::make_unique<juce::TabbedComponent>(
         juce::TabbedButtonBar::TabsAtTop);
     modulationTabs->addTab("LFOs", accent, lfoPage.get(), false);
@@ -300,8 +328,12 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     glideEnabledAttachment = std::make_unique<ButtonAttachment>(
         state, "glideenabled", glideEnabled);
     glideTimeAttachment = std::make_unique<SliderAttachment>(state, "glidetime", glideTime);
+    pas1::diagnostics::startupTrace("editor.setSize.before");
     setSize(1020, 740);
+    pas1::diagnostics::startupTrace("editor.setSize.done");
+    pas1::diagnostics::startupTrace("editor.showHome.before");
     showPage(Page::home);
+    pas1::diagnostics::startupTrace("editor.showHome.done");
     
 }
 
@@ -447,6 +479,7 @@ void Pas1AudioProcessorEditor::timerCallback() {
 }
 
 void Pas1AudioProcessorEditor::resized() {
+    pas1::diagnostics::startupTrace("editor.resized.begin");
     const auto width = getWidth();
     const std::array<std::pair<juce::TextButton*, int>, 10> tabs{{
         {&homeButton, 58}, {&oscillatorButton, 62}, {&filterButton, 68},
@@ -455,31 +488,49 @@ void Pas1AudioProcessorEditor::resized() {
         {&settingsButton, 76}
     }};
     auto tabX = 30;
+    std::size_t tabIndex = 0;
     for (const auto& [button, tabWidth] : tabs) {
+        char marker[64]{};
+        std::snprintf(marker, sizeof(marker), "editor.resized.tab.%zu.before", tabIndex);
+        pas1::diagnostics::startupTrace(marker);
         button->setBounds(tabX, 76, tabWidth, 29);
+        std::snprintf(marker, sizeof(marker), "editor.resized.tab.%zu.after", tabIndex);
+        pas1::diagnostics::startupTrace(marker);
         tabX += tabWidth + 4;
+        ++tabIndex;
     }
+    pas1::diagnostics::startupTrace("editor.resized.headerButtons.before");
     savePresetButton.setBounds(width - 250, 20, 78, 30);
     engineButton.setBounds(width - 164, 20, 128, 30);
 
     const auto pageBounds = juce::Rectangle<int>{30, 116, width - 60, getHeight() - 142};
-    for (auto* page : {static_cast<juce::Component*>(oscillatorPage.get()),
-                       static_cast<juce::Component*>(filterPage.get()),
-                       static_cast<juce::Component*>(effectsPage.get()),
-                       static_cast<juce::Component*>(settingsPage.get()),
-                       static_cast<juce::Component*>(generatorPanel.get()),
-                       static_cast<juce::Component*>(morphPanel.get()),
-                       static_cast<juce::Component*>(soundDNAPanel.get()),
-                       static_cast<juce::Component*>(presetsPanel.get()),
-                       static_cast<juce::Component*>(modulationTabs.get()),
-                       static_cast<juce::Component*>(engineEditor.get())})
+    const std::array<std::pair<const char*, juce::Component*>, 10> pages{{
+        {"oscillatorPage", oscillatorPage.get()},
+        {"filterPage", filterPage.get()},
+        {"effectsPage", effectsPage.get()},
+        {"settingsPage", settingsPage.get()},
+        {"generatorPanel", generatorPanel.get()},
+        {"morphPanel", morphPanel.get()},
+        {"soundDNAPanel", soundDNAPanel.get()},
+        {"presetsPanel", presetsPanel.get()},
+        {"modulationTabs", modulationTabs.get()},
+        {"engineEditor", engineEditor.get()}
+    }};
+    for (const auto& [name, page] : pages) {
+        const auto before = std::string{"editor.resized.page."} + name + ".before";
+        pas1::diagnostics::startupTrace(before);
         page->setBounds(pageBounds);
+        const auto after = std::string{"editor.resized.page."} + name + ".after";
+        pas1::diagnostics::startupTrace(after);
+    }
+    pas1::diagnostics::startupTrace("editor.resized.settingsControls.before");
     resetDefaultsButton.setBounds(46, 121, 174, 27);
     storeSnapshotAButton.setBounds(230, 121, 72, 27);
     storeSnapshotBButton.setBounds(308, 121, 72, 27);
     compareSnapshotsButton.setBounds(386, 121, 92, 27);
     settingsPage->setBounds(pageBounds.withY(152).withHeight(pageBounds.getHeight() - 36));
 
+    pas1::diagnostics::startupTrace("editor.resized.waveform.before");
     waveformLabel.setBounds(50, 145, 125, 18);
     waveform.setBounds(180, 140, 190, 34);
 
@@ -487,6 +538,7 @@ void Pas1AudioProcessorEditor::resized() {
     const auto gap = 18;
     auto x = 48;
     const auto sliderY = 253;
+    pas1::diagnostics::startupTrace("editor.resized.envelopeSliders.before");
     for (auto* item : {&attack, &decay, &sustain, &release}) {
         item->setBounds(x, sliderY, sliderWidth, 112);
         x += sliderWidth + gap;
@@ -497,6 +549,7 @@ void Pas1AudioProcessorEditor::resized() {
     releaseLabel.setBounds(release.getX(), 234, sliderWidth, 18);
 
     const auto rightControlsX = std::max(520, width - 230);
+    pas1::diagnostics::startupTrace("editor.resized.performanceControls.before");
     master.setBounds(rightControlsX, 137, 92, 55);
     voices.setBounds(rightControlsX + 104, 137, 92, 55);
     masterLabel.setBounds(master.getX(), 122, 92, 18);
@@ -506,8 +559,11 @@ void Pas1AudioProcessorEditor::resized() {
     glideEnabled.setBounds(204, 438, 86, 29);
     glideTimeLabel.setBounds(304, 422, 160, 14);
     glideTime.setBounds(304, 436, 210, 34);
+    pas1::diagnostics::startupTrace("editor.resized.keyboard.before");
     keyboard.setBounds(48, 482, width - 96, 54);
+    pas1::diagnostics::startupTrace("editor.resized.spectrumAnalyzer.before");
     spectrumAnalyzer->setBounds(540, 420, width - 594, 52);
+    pas1::diagnostics::startupTrace("editor.resized.done");
 }
 
 void Pas1AudioProcessorEditor::setCoreControlsVisible(bool visible) {
@@ -535,6 +591,7 @@ void Pas1AudioProcessorEditor::setCoreControlsVisible(bool visible) {
 }
 
 void Pas1AudioProcessorEditor::showPage(Page page) {
+    pas1::diagnostics::startupTrace("editor.showPage.begin");
     currentPage = page;
     const auto home = page == Page::home;
     engineEditor->setVisible(page == Page::allParameters);
@@ -569,7 +626,9 @@ void Pas1AudioProcessorEditor::showPage(Page page) {
     if (page == Page::presets)
         presetsPanel->refreshLibrary();
 
+    pas1::diagnostics::startupTrace("editor.showPage.resized.before");
     resized();
+    pas1::diagnostics::startupTrace("editor.showPage.resized.done");
     repaint();
 }
 
