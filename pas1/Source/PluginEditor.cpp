@@ -34,7 +34,6 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     : AudioProcessorEditor(&processor),
       processor_(processor),
       keyboard(processor.keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard) {
-    setSize(1020, 740);
     setResizable(true, true);
     setResizeLimits(980, 610, 1440, 1100);
     setLookAndFeel(nullptr);
@@ -301,7 +300,9 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     glideEnabledAttachment = std::make_unique<ButtonAttachment>(
         state, "glideenabled", glideEnabled);
     glideTimeAttachment = std::make_unique<SliderAttachment>(state, "glidetime", glideTime);
+    setSize(1020, 740);
     showPage(Page::home);
+    
 }
 
 void Pas1AudioProcessorEditor::paint(juce::Graphics& graphics) {
