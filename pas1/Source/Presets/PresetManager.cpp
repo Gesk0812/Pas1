@@ -1,4 +1,5 @@
 #include "PresetManager.h"
+#include "UI/Utf8Text.h"
 
 #include "../DSP/StateVariableFilter.h"
 
@@ -760,7 +761,7 @@ bool PresetManager::saveUserPreset(const juce::String& name, const juce::String&
 
     auto fileName = juce::File::createLegalFileName(name.trim());
     if (fileName.isEmpty()) {
-        error = "Введите название пресета.";
+        error = pas1::ui::utf8String("Введите название пресета.");
         return false;
     }
     auto file = directory.getChildFile(fileName + ".pas1preset");
@@ -776,7 +777,7 @@ bool PresetManager::saveUserPreset(const juce::String& name, const juce::String&
 
 bool PresetManager::overwriteUserPreset(const juce::File& file, juce::String& error) const {
     if (!isUserPresetFile(file)) {
-        error = "Можно обновлять только пресеты из пользовательской библиотеки PAS 1.";
+        error = pas1::ui::utf8String("Можно обновлять только пресеты из пользовательской библиотеки PAS 1.");
         return false;
     }
     juce::ValueTree unusedState;
@@ -790,13 +791,13 @@ bool PresetManager::overwriteUserPreset(const juce::File& file, juce::String& er
 bool PresetManager::duplicateBuiltInPreset(int index, const juce::String& newName,
                                            juce::File& duplicateFile, juce::String& error) const {
     if (index < 0 || index >= getBuiltInPresetCount()) {
-        error = "Выбранный заводской пресет больше не существует.";
+        error = pas1::ui::utf8String("Выбранный заводской пресет больше не существует.");
         return false;
     }
     const auto cleanName = newName.trim();
     const auto legalName = juce::File::createLegalFileName(cleanName);
     if (cleanName.isEmpty() || legalName.isEmpty()) {
-        error = "Введите допустимое название копии.";
+        error = pas1::ui::utf8String("Введите допустимое название копии.");
         return false;
     }
 
@@ -836,7 +837,7 @@ bool PresetManager::duplicateBuiltInPreset(int index, const juce::String& newNam
 bool PresetManager::duplicateUserPreset(const juce::File& source, const juce::String& newName,
                                         juce::File& duplicateFile, juce::String& error) const {
     if (!isUserPresetFile(source)) {
-        error = "Здесь можно дублировать только пресеты из пользовательской библиотеки PAS 1.";
+        error = pas1::ui::utf8String("Здесь можно дублировать только пресеты из пользовательской библиотеки PAS 1.");
         return false;
     }
     juce::ValueTree state;
@@ -847,7 +848,7 @@ bool PresetManager::duplicateUserPreset(const juce::File& source, const juce::St
     const auto cleanName = newName.trim();
     const auto legalName = juce::File::createLegalFileName(cleanName);
     if (cleanName.isEmpty() || legalName.isEmpty()) {
-        error = "Введите допустимое название копии.";
+        error = pas1::ui::utf8String("Введите допустимое название копии.");
         return false;
     }
     auto target = getUserPresetDirectory().getChildFile(legalName + ".pas1preset");
@@ -862,7 +863,7 @@ bool PresetManager::duplicateUserPreset(const juce::File& source, const juce::St
 bool PresetManager::renameUserPreset(const juce::File& source, const juce::String& newName,
                                      juce::File& renamedFile, juce::String& error) const {
     if (!isUserPresetFile(source)) {
-        error = "Можно переименовывать только пресеты из пользовательской библиотеки PAS 1.";
+        error = pas1::ui::utf8String("Можно переименовывать только пресеты из пользовательской библиотеки PAS 1.");
         return false;
     }
     juce::ValueTree state;
@@ -873,18 +874,18 @@ bool PresetManager::renameUserPreset(const juce::File& source, const juce::Strin
     const auto cleanName = newName.trim();
     const auto legalName = juce::File::createLegalFileName(cleanName);
     if (cleanName.isEmpty() || legalName.isEmpty()) {
-        error = "Введите допустимое название пресета.";
+        error = pas1::ui::utf8String("Введите допустимое название пресета.");
         return false;
     }
     const auto target = getUserPresetDirectory().getChildFile(legalName + ".pas1preset");
     if (target != source && target.existsAsFile()) {
-        error = "Пользовательский пресет с таким именем файла уже существует.";
+        error = pas1::ui::utf8String("Пользовательский пресет с таким именем файла уже существует.");
         return false;
     }
     if (!writePresetFileFromState(target, cleanName, category, state, error))
         return false;
     if (target != source && !source.deleteFile()) {
-        error = "Переименованный пресет сохранён, но удалить старый файл не удалось.";
+        error = pas1::ui::utf8String("Переименованный пресет сохранён, но удалить старый файл не удалось.");
         return false;
     }
 
@@ -905,12 +906,12 @@ bool PresetManager::renameUserPreset(const juce::File& source, const juce::Strin
 
 bool PresetManager::deleteUserPreset(const juce::File& file, juce::String& error) const {
     if (!isUserPresetFile(file)) {
-        error = "Можно удалять только пресеты из пользовательской библиотеки PAS 1.";
+        error = pas1::ui::utf8String("Можно удалять только пресеты из пользовательской библиотеки PAS 1.");
         return false;
     }
     const auto id = userPresetId(file);
     if (!file.deleteFile()) {
-        error = "Не удалось удалить файл выбранного пресета.";
+        error = pas1::ui::utf8String("Не удалось удалить файл выбранного пресета.");
         return false;
     }
     auto favorites = getFavoritePresetIds();
@@ -932,11 +933,11 @@ bool PresetManager::exportPreset(const juce::File& destination, const juce::Stri
 bool PresetManager::exportUserPreset(const juce::File& source, const juce::File& destination,
                                      juce::String& error) const {
     if (!isUserPresetFile(source)) {
-        error = "Напрямую можно экспортировать только пресеты из пользовательской библиотеки PAS 1.";
+        error = pas1::ui::utf8String("Напрямую можно экспортировать только пресеты из пользовательской библиотеки PAS 1.");
         return false;
     }
     if (destination == juce::File{} || destination == source) {
-        error = "Выберите другой файл назначения.";
+        error = pas1::ui::utf8String("Выберите другой файл назначения.");
         return false;
     }
     juce::ValueTree unusedState;
@@ -945,7 +946,7 @@ bool PresetManager::exportUserPreset(const juce::File& source, const juce::File&
     if (!readPresetDocument(source, unusedState, name, category, error))
         return false;
     if (!source.copyFileTo(destination)) {
-        error = "Не удалось экспортировать выбранный пресет.";
+        error = pas1::ui::utf8String("Не удалось экспортировать выбранный пресет.");
         return false;
     }
     return true;
@@ -994,7 +995,7 @@ bool PresetManager::importPreset(const juce::File& source, juce::File& importedF
     while (target.existsAsFile())
         target = target.getNonexistentSibling();
     if (!source.copyFileTo(target)) {
-        error = "Не удалось скопировать пресет в папку пользовательских пресетов.";
+        error = pas1::ui::utf8String("Не удалось скопировать пресет в папку пользовательских пресетов.");
         return false;
     }
     importedFile = target;
@@ -1015,7 +1016,7 @@ bool PresetManager::makePresetDocumentFromState(const juce::ValueTree& sourceSta
     state.setProperty("stateVersion", 9, nullptr);
     const auto xml = state.createXml();
     if (xml == nullptr) {
-        error = "Не удалось сохранить текущее состояние синтезатора.";
+        error = pas1::ui::utf8String("Не удалось сохранить текущее состояние синтезатора.");
         return false;
     }
 
@@ -1033,7 +1034,7 @@ bool PresetManager::readPresetDocument(const juce::File& file, juce::ValueTree& 
                                        juce::String& name, juce::String& category,
                                        juce::String& error) const {
     if (!file.existsAsFile() || file.getSize() > 1024 * 1024) {
-        error = "Файл пресета отсутствует или превышает 1 МБ.";
+        error = pas1::ui::utf8String("Файл пресета отсутствует или превышает 1 МБ.");
         return false;
     }
 
@@ -1041,14 +1042,14 @@ bool PresetManager::readPresetDocument(const juce::File& file, juce::ValueTree& 
     if (!document.isObject()
         || getDocumentText(document, "format") != "PAS1Preset"
         || static_cast<int>(document.getProperty("schemaVersion", 0)) != 1) {
-        error = "Формат файла пресета PAS 1 не поддерживается.";
+        error = pas1::ui::utf8String("Формат файла пресета PAS 1 не поддерживается.");
         return false;
     }
 
     name = getDocumentText(document, "name");
     category = getDocumentText(document, "category");
     if (name.isEmpty()) {
-        error = "В файле пресета не указано название.";
+        error = pas1::ui::utf8String("В файле пресета не указано название.");
         return false;
     }
     return validateStateXml(getDocumentText(document, "stateXml"), state, error);
@@ -1058,13 +1059,13 @@ bool PresetManager::validateStateXml(const juce::String& xmlText, juce::ValueTre
                                      juce::String& error) const {
     const auto xml = juce::XmlDocument::parse(xmlText);
     if (xml == nullptr || !xml->hasTagName(parameters_.state.getType())) {
-        error = "Пресет содержит недопустимое или несовместимое состояние синтезатора.";
+        error = pas1::ui::utf8String("Пресет содержит недопустимое или несовместимое состояние синтезатора.");
         return false;
     }
 
     auto candidate = juce::ValueTree::fromXml(*xml);
     if (!candidate.isValid()) {
-        error = "Не удалось прочитать состояние из пресета.";
+        error = pas1::ui::utf8String("Не удалось прочитать состояние из пресета.");
         return false;
     }
     for (int index = 0; index < candidate.getNumChildren(); ++index) {
@@ -1081,7 +1082,7 @@ bool PresetManager::validateStateXml(const juce::String& xmlText, juce::ValueTre
         const auto& range = parameter->getNormalisableRange();
         if (!std::isfinite(value) || value < range.start - 1.0e-5f
             || value > range.end + 1.0e-5f) {
-            error = "В пресете найдено значение параметра за допустимыми пределами.";
+            error = pas1::ui::utf8String("В пресете найдено значение параметра за допустимыми пределами.");
             return false;
         }
     }
@@ -1102,12 +1103,12 @@ bool PresetManager::writePresetFileFromState(const juce::File& destination,
     juce::String document;
     if (name.isEmpty() || !makePresetDocumentFromState(state, name, category, document, error)) {
         if (error.isEmpty())
-        error = "Введите название пресета.";
+        error = pas1::ui::utf8String("Введите название пресета.");
         return false;
     }
 
     if (!destination.replaceWithText(document)) {
-        error = "Не удалось записать файл пресета.";
+        error = pas1::ui::utf8String("Не удалось записать файл пресета.");
         return false;
     }
     return true;

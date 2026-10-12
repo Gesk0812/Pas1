@@ -494,7 +494,7 @@ void PresetsPanel::deleteSelected() {
 
 void PresetsPanel::importPreset() {
     fileChooser = std::make_unique<juce::FileChooser>(
-        "Импорт пресета PAS 1", processor_.presetManager.getUserPresetDirectory(), "*.pas1preset");
+        pas1::ui::utf8String("Импорт пресета PAS 1"), processor_.presetManager.getUserPresetDirectory(), "*.pas1preset");
     juce::Component::SafePointer<PresetsPanel> safeThis(this);
     fileChooser->launchAsync(juce::FileBrowserComponent::openMode
                                  | juce::FileBrowserComponent::canSelectFiles,
@@ -510,7 +510,7 @@ void PresetsPanel::importPreset() {
             safeThis->showError(error);
             return;
         }
-        safeThis->setStatus("Пресет импортирован в пользовательскую библиотеку.");
+        safeThis->setStatus(pas1::ui::utf8String("Пресет импортирован в пользовательскую библиотеку."));
         safeThis->selectPresetInLibrary(PresetManager::userPresetId(importedFile));
     });
 }
@@ -521,7 +521,7 @@ void PresetsPanel::exportSelected() {
         return;
     const auto source = *entry;
     fileChooser = std::make_unique<juce::FileChooser>(
-        "Экспорт пресета PAS 1", juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+        pas1::ui::utf8String("Экспорт пресета PAS 1"), juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
                                   .getChildFile(source.info.file.getFileName()),
         "*.pas1preset");
     juce::Component::SafePointer<PresetsPanel> safeThis(this);
@@ -540,13 +540,14 @@ void PresetsPanel::exportSelected() {
             safeThis->showError(error);
             return;
         }
-        safeThis->setStatus("Выбранный пресет экспортирован.");
+        safeThis->setStatus(pas1::ui::utf8String("Выбранный пресет экспортирован."));
     });
 }
 
 void PresetsPanel::showError(const juce::String& message) {
     juce::AlertWindow::showMessageBoxAsync(
-        juce::MessageBoxIconType::WarningIcon, "Пресеты PAS 1", message, "ОК", this);
+        juce::MessageBoxIconType::WarningIcon, pas1::ui::utf8String("Пресеты PAS 1"), message,
+        pas1::ui::utf8String("ОК"), this);
 }
 
 void PresetsPanel::setStatus(const juce::String& message) {
