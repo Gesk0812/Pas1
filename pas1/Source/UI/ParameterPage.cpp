@@ -3,43 +3,37 @@
 #include <algorithm>
 #include <utility>
 
-namespace {
-const juce::Colour pageBackground{0xff302015};
-const juce::Colour rowBackground{0xff3a271b};
-const juce::Colour pageAccent{0xffd8b36a};
-const juce::Colour pageText{0xfff4e8cf};
-const juce::Colour pageMuted{0xffbba483};
-}
-
 class ParameterPage::Content final : public juce::Component {
 private:
     class Row final : public juce::Component {
     public:
-        Row(juce::AudioProcessorValueTreeState& state, const juce::String& id) {
+        Row(juce::AudioProcessorValueTreeState& state, const juce::String& id,
+            ParameterPageTheme theme)
+            : theme_(std::move(theme)) {
             auto* parameter = state.getParameter(id);
             if (parameter == nullptr)
                 return;
 
             const auto parameterName = parameter->getName(72);
             label_.setText(parameterName, juce::dontSendNotification);
-            label_.setColour(juce::Label::textColourId, pageMuted);
+            label_.setColour(juce::Label::textColourId, theme_.muted);
             label_.setFont(juce::FontOptions{11.0f, juce::Font::bold});
             addAndMakeVisible(label_);
 
             if (dynamic_cast<juce::AudioParameterBool*>(parameter) != nullptr) {
                 label_.setVisible(false);
                 toggle_.setButtonText(parameterName);
-                toggle_.setColour(juce::ToggleButton::textColourId, pageText);
-                toggle_.setColour(juce::ToggleButton::tickColourId, pageAccent);
+                toggle_.setColour(juce::ToggleButton::textColourId, theme_.text);
+                toggle_.setColour(juce::ToggleButton::tickColourId, theme_.accent);
                 addAndMakeVisible(toggle_);
                 buttonAttachment_ =
                     std::make_unique<ButtonAttachment>(state, id, toggle_);
             } else if (auto* choice = dynamic_cast<juce::AudioParameterChoice*>(parameter)) {
                 combo_.addItemList(choice->choices, 1);
-                combo_.setColour(juce::ComboBox::backgroundColourId, rowBackground);
-                combo_.setColour(juce::ComboBox::textColourId, pageText);
-                combo_.setColour(juce::ComboBox::outlineColourId, juce::Colour{0xff745332});
-                combo_.setColour(juce::ComboBox::arrowColourId, pageAccent);
+                combo_.setColour(juce::ComboBox::backgroundColourId, theme_.rowBackground);
+                combo_.setColour(juce::ComboBox::textColourId, theme_.text);
+                combo_.setColour(juce::ComboBox::outlineColourId, theme_.border);
+                combo_.setColour(juce::ComboBox::arrowColourId, theme_.accent);
                 addAndMakeVisible(combo_);
                 comboAttachment_ =
                     std::make_unique<ComboBoxAttachment>(state, id, combo_);
@@ -53,11 +47,11 @@ private:
                 slider_.setTextValueSuffix(parameter->getLabel().isNotEmpty()
                                                ? " " + parameter->getLabel()
                                                : juce::String{});
-                slider_.setColour(juce::Slider::trackColourId, pageAccent);
-                slider_.setColour(juce::Slider::thumbColourId, pageText);
-                slider_.setColour(juce::Slider::textBoxTextColourId, pageText);
-                slider_.setColour(juce::Slider::textBoxBackgroundColourId, rowBackground);
-                slider_.setColour(juce::Slider::textBoxOutlineColourId, juce::Colour{0xff745332});
+                 slider_.setColour(juce::Slider::trackColourId, theme_.accent);
+                 slider_.setColour(juce::Slider::thumbColourId, theme_.text);
+                 slider_.setColour(juce::Slider::textBoxTextColourId, theme_.text);
+                 slider_.setColour(juce::Slider::textBoxBackgroundColourId, theme_.rowBackground);
+                 slider_.setColour(juce::Slider::textBoxOutlineColourId, theme_.border);
                 addAndMakeVisible(slider_);
                 sliderAttachment_ =
                     std::make_unique<SliderAttachment>(state, id, slider_);
@@ -65,7 +59,7 @@ private:
         }
 
         void paint(juce::Graphics& graphics) override {
-            graphics.setColour(rowBackground);
+            graphics.setColour(theme_.rowBackground);
             graphics.fillRoundedRectangle(getLocalBounds().toFloat(), 8.0f);
         }
 
@@ -87,6 +81,7 @@ private:
         using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
 
         juce::Label label_;
+        ParameterPageTheme theme_;
         juce::Slider slider_;
         juce::ComboBox combo_;
         juce::ToggleButton toggle_;
@@ -97,13 +92,14 @@ private:
 
     class Section final : public juce::Component {
     public:
-        Section(juce::AudioProcessorValueTreeState& state, const ParameterPageGroup& group) {
+        Section(juce::AudioProcessorValueTreeState& state, const ParameterPageGroup& group,
+                const ParameterPageTheme& theme) {
             heading_.setText(group.title, juce::dontSendNotification);
-            heading_.setColour(juce::Label::textColourId, pageAccent);
+            heading_.setColour(juce::Label::textColourId, theme.accent);
             heading_.setFont(juce::FontOptions{12.0f, juce::Font::bold});
             addAndMakeVisible(heading_);
             for (const auto& id : group.parameterIds) {
-                auto row = std::make_unique<Row>(state, id);
+                auto row = std::make_unique<Row>(state, id, theme);
                 addAndMakeVisible(*row);
                 rows_.push_back(std::move(row));
             }
@@ -136,9 +132,10 @@ private:
 
 public:
     Content(juce::AudioProcessorValueTreeState& state,
-            const std::vector<ParameterPageGroup>& groups) {
+            const std::vector<ParameterPageGroup>& groups,
+            const ParameterPageTheme& theme) {
         for (const auto& group : groups) {
-            auto section = std::make_unique<Section>(state, group);
+            auto section = std::make_unique<Section>(state, group, theme);
             addAndMakeVisible(*section);
             sections_.push_back(std::move(section));
         }
@@ -167,8 +164,11 @@ private:
 
 ParameterPage::ParameterPage(juce::AudioProcessorValueTreeState& state,
                              juce::String title,
-                             std::vector<ParameterPageGroup> groups)
-    : title_(std::move(title)), content_(std::make_unique<Content>(state, groups)) {
+                             std::vector<ParameterPageGroup> groups,
+                             ParameterPageTheme theme)
+    : title_(std::move(title)),
+      theme_(std::move(theme)),
+      content_(std::make_unique<Content>(state, groups, theme_)) {
     viewport_.setViewedComponent(content_.get(), false);
     viewport_.setScrollBarsShown(true, false);
     addAndMakeVisible(viewport_);
@@ -177,8 +177,8 @@ ParameterPage::ParameterPage(juce::AudioProcessorValueTreeState& state,
 ParameterPage::~ParameterPage() = default;
 
 void ParameterPage::paint(juce::Graphics& graphics) {
-    graphics.fillAll(pageBackground);
-    graphics.setColour(pageAccent);
+    graphics.fillAll(theme_.background);
+    graphics.setColour(theme_.accent);
     graphics.setFont(juce::FontOptions{13.0f, juce::Font::bold});
     graphics.drawText(title_, 12, 8, getWidth() - 24, 20, juce::Justification::centredLeft);
 }

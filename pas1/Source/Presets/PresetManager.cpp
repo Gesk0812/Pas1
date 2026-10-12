@@ -445,6 +445,42 @@ constexpr ParameterSetting orbitSweepSettings[]{
     {"decay", 1.3f}, {"sustain", 0.6f}, {"release", 2.6f},
     {"phaserenabled", 1}, {"phasermix", 0.26f}, {"reverbenabled", 1},
     {"reverbmix", 0.3f}, {"master", 0.46f}};
+constexpr ParameterSetting aulosPairSettings[]{
+    {"ancientinstrument", 1}, {"ancientmix", 0.92f}, {"ancientbrightness", 0.72f},
+    {"ancientdecay", 4.2f}, {"ancientair", 0.68f}, {"ancientdetune", 0.56f},
+    {"attack", 0.18f}, {"decay", 1.2f}, {"sustain", 0.82f}, {"release", 1.6f},
+    {"filtercutoff", 7200.0f}, {"reverbenabled", 1}, {"reverbmix", 0.3f},
+    {"reverbdecay", 0.72f}, {"master", 0.52f}};
+constexpr ParameterSetting lyrePluckSettings[]{
+    {"ancientinstrument", 2}, {"ancientmix", 0.94f}, {"ancientbrightness", 0.79f},
+    {"ancientdecay", 2.4f}, {"ancientair", 0.28f}, {"ancientdetune", 0.2f},
+    {"attack", 0.004f}, {"decay", 0.48f}, {"sustain", 0.16f}, {"release", 0.92f},
+    {"filtercutoff", 9800.0f}, {"reverbenabled", 1}, {"reverbmix", 0.22f},
+    {"reverbdecay", 0.58f}, {"master", 0.54f}};
+constexpr ParameterSetting bronzeOracleSettings[]{
+    {"ancientinstrument", 3}, {"ancientmix", 0.98f}, {"ancientbrightness", 0.56f},
+    {"ancientdecay", 11.5f}, {"ancientair", 0.78f}, {"ancientdetune", 0.3f},
+    {"attack", 0.006f}, {"decay", 1.7f}, {"sustain", 0.0f}, {"release", 4.2f},
+    {"filtercutoff", 6200.0f}, {"reverbenabled", 1}, {"reverbmix", 0.38f},
+    {"reverbdecay", 0.86f}, {"master", 0.48f}};
+constexpr ParameterSetting foundMetalSettings[]{
+    {"ancientinstrument", 4}, {"ancientmix", 0.9f}, {"ancientbrightness", 0.88f},
+    {"ancientdecay", 4.4f}, {"ancientair", 0.84f}, {"ancientdetune", 0.2f},
+    {"attack", 0.003f}, {"decay", 0.75f}, {"sustain", 0.08f}, {"release", 1.8f},
+    {"filtercutoff", 10500.0f}, {"reverbenabled", 1}, {"reverbmix", 0.28f},
+    {"reverbdecay", 0.7f}, {"master", 0.48f}};
+constexpr ParameterSetting sirenReedSettings[]{
+    {"ancientinstrument", 1}, {"ancientmix", 0.88f}, {"ancientbrightness", 0.82f},
+    {"ancientdecay", 3.2f}, {"ancientair", 0.82f}, {"ancientdetune", 0.72f},
+    {"attack", 0.32f}, {"decay", 1.8f}, {"sustain", 0.72f}, {"release", 2.8f},
+    {"filtercutoff", 8400.0f}, {"reverbenabled", 1}, {"reverbmix", 0.42f},
+    {"reverbdecay", 0.92f}, {"master", 0.46f}};
+constexpr ParameterSetting templeResonanceSettings[]{
+    {"ancientinstrument", 3}, {"ancientmix", 0.96f}, {"ancientbrightness", 0.44f},
+    {"ancientdecay", 16.0f}, {"ancientair", 0.48f}, {"ancientdetune", 0.24f},
+    {"attack", 0.12f}, {"decay", 2.0f}, {"sustain", 0.5f}, {"release", 5.0f},
+    {"filtercutoff", 5400.0f}, {"reverbenabled", 1}, {"reverbmix", 0.52f},
+    {"reverbdecay", 0.98f}, {"master", 0.44f}};
 
 const BuiltInPreset builtInPresets[]{
     {"Sub Bass", "Bass", subBassSettings, std::size(subBassSettings)},
@@ -510,7 +546,13 @@ const BuiltInPreset builtInPresets[]{
     {"Wooden Kalimba", "Pluck", woodenKalimbaSettings, std::size(woodenKalimbaSettings)},
     {"Chime Pluck", "Pluck", chimePluckSettings, std::size(chimePluckSettings)},
     {"Radio Dust", "FX", radioDustSettings, std::size(radioDustSettings)},
-    {"Orbit Sweep", "FX", orbitSweepSettings, std::size(orbitSweepSettings)}
+    {"Orbit Sweep", "FX", orbitSweepSettings, std::size(orbitSweepSettings)},
+    {"Aulos Pair", "Ancient", aulosPairSettings, std::size(aulosPairSettings)},
+    {"Ithacan Lyre", "Ancient", lyrePluckSettings, std::size(lyrePluckSettings)},
+    {"Bronze Oracle", "Ancient", bronzeOracleSettings, std::size(bronzeOracleSettings)},
+    {"Found Metal", "Ancient", foundMetalSettings, std::size(foundMetalSettings)},
+    {"Siren Reed", "Ancient", sirenReedSettings, std::size(sirenReedSettings)},
+    {"Temple Resonance", "Ancient", templeResonanceSettings, std::size(templeResonanceSettings)}
 };
 
 juce::String getDocumentText(const juce::var& document, const juce::Identifier& key) {

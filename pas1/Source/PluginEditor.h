@@ -28,6 +28,7 @@ private:
     enum class Page {
         home,
         oscillators,
+        ancient,
         filters,
         modulation,
         morph,
@@ -56,6 +57,7 @@ private:
     std::unique_ptr<juce::GenericAudioProcessorEditor> engineEditor;
     juce::TextButton homeButton{"HOME"};
     juce::TextButton oscillatorButton{"OSC"};
+    juce::TextButton ancientButton{"ANCIENT"};
     juce::TextButton filterButton{"FILTER"};
     juce::TextButton effectsButton{"FX"};
     juce::TextButton settingsButton{"SETTINGS"};
@@ -79,6 +81,7 @@ private:
     juce::MemoryBlock snapshotB;
     bool showingSnapshotB = false;
     std::unique_ptr<ParameterPage> oscillatorPage;
+    std::unique_ptr<ParameterPage> ancientPage;
     std::unique_ptr<ParameterPage> filterPage;
     std::unique_ptr<ParameterPage> lfoPage;
     std::unique_ptr<ParameterPage> effectsPage;

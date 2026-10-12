@@ -8,6 +8,7 @@
 #include "DSP/LowFrequencyOscillator.h"
 #include "DSP/Oscillator.h"
 #include "DSP/MetallicTine.h"
+#include "DSP/AncientInstrument.h"
 #include "DSP/StateVariableFilter.h"
 #include "DSP/WavetableOscillator.h"
 #include "Generation/SoundGenerator.h"
@@ -85,6 +86,55 @@ void testMetallicTine() {
                  0.6f, 0.75f, 0.65f);
     expect(tine.nextSample(440.0f, sampleRate) == 0.0f,
            "invalid trigger frequency must leave the tine silent");
+}
+
+void testAncientInstrumentVoices() {
+    constexpr float sampleRate = 48000.0f;
+    constexpr std::array<pas1::dsp::AncientInstrument, 4> instruments{
+        pas1::dsp::AncientInstrument::aulos,
+        pas1::dsp::AncientInstrument::lyre,
+        pas1::dsp::AncientInstrument::bronzeGong,
+        pas1::dsp::AncientInstrument::foundMetal
+    };
+    std::array<std::array<float, 256>, instruments.size()> signatures{};
+
+    for (std::size_t instrumentIndex = 0; instrumentIndex < instruments.size();
+         ++instrumentIndex) {
+        pas1::dsp::AncientInstrumentVoice voice;
+        voice.trigger(instruments[instrumentIndex], 220.0f, sampleRate,
+                      0.7f, 2.6f, 0.55f, 0.4f,
+                      static_cast<std::uint32_t>(instrumentIndex + 11));
+        double energy = 0.0;
+        for (int sampleIndex = 0; sampleIndex < 4096; ++sampleIndex) {
+            const auto sample = voice.nextSample(220.0f, sampleRate);
+            expect(std::isfinite(sample), "ancient instrument samples must stay finite");
+            expect(std::abs(sample) <= 1.001f, "ancient instrument output must stay bounded");
+            energy += static_cast<double>(sample) * sample;
+            if (sampleIndex < static_cast<int>(signatures[instrumentIndex].size()))
+                signatures[instrumentIndex][static_cast<std::size_t>(sampleIndex)] = sample;
+        }
+        expect(energy > 0.01, "each ancient instrument must produce an audible signal");
+    }
+
+    for (std::size_t first = 0; first < signatures.size(); ++first) {
+        for (std::size_t second = first + 1; second < signatures.size(); ++second) {
+            double difference = 0.0;
+            for (std::size_t sample = 0; sample < signatures[first].size(); ++sample)
+                difference += std::abs(signatures[first][sample] - signatures[second][sample]);
+            expect(difference > 0.1, "ancient instrument timbres must be distinct");
+        }
+    }
+
+    pas1::dsp::AncientInstrumentVoice disabled;
+    disabled.trigger(pas1::dsp::AncientInstrument::off, 220.0f, sampleRate,
+                     0.7f, 2.6f, 0.55f, 0.4f, 1);
+    expect(disabled.nextSample(220.0f, sampleRate) == 0.0f,
+           "the off setting must remain silent");
+    disabled.trigger(pas1::dsp::AncientInstrument::lyre,
+                     std::numeric_limits<float>::quiet_NaN(), sampleRate,
+                     0.7f, 2.6f, 0.55f, 0.4f, 1);
+    expect(disabled.nextSample(220.0f, sampleRate) == 0.0f,
+           "invalid ancient instrument triggers must safely reset the voice");
 }
 
 void testEnvelope() {
@@ -499,6 +549,25 @@ void testSoundGenerator() {
     expect(findMusicBoxValue(musicBoxRecipe, "musicboxinharmonicity")->normalizedValue
                > findMusicBoxValue(musicBoxBase, "musicboxinharmonicity")->normalizedValue,
            "music-box recipe should raise the inharmonic tine character");
+    const std::vector<ParameterValue> ancientBase{
+        {"ancientinstrument", 0.0f, 0.0f, 0.0f, 4.0f, 1.0f, 5, true},
+        {"ancientmix", 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0, false},
+        {"ancientbrightness", 0.68f, 0.68f, 0.0f, 1.0f, 1.0f, 0, false},
+        {"ancientdecay", 3.2f, 0.16f, 0.08f, 20.0f, 0.4f, 0, false},
+        {"ancientair", 0.42f, 0.42f, 0.0f, 1.0f, 1.0f, 0, false},
+        {"ancientdetune", 0.32f, 0.32f, 0.0f, 1.0f, 1.0f, 0, false}};
+    const auto ancientRecipe = pas1::generation::SoundGenerator::createRecipe(
+        ancientBase, "Aulos reed drone", controls);
+    expect(std::abs(findValue(ancientRecipe, "ancientinstrument")->normalizedValue - 0.25f)
+               < 0.001f,
+           "aulos recipe must select the paired-reed instrument");
+    expect(findValue(ancientRecipe, "ancientmix")->normalizedValue > 0.8f,
+           "ancient instrument recipes must bring the modeled voice forward");
+    const auto lyreRecipe = pas1::generation::SoundGenerator::createRecipe(
+        ancientBase, "ancient lyre", controls);
+    expect(std::abs(findValue(lyreRecipe, "ancientinstrument")->normalizedValue - 0.5f)
+               < 0.001f,
+           "lyre keywords must select the plucked-string voice");
     const std::vector<std::string> lockedTine{"musicboxmix"};
     const auto lockedMusicBoxRecipe = pas1::generation::SoundGenerator::createRecipe(
         musicBoxBase, "music box", controls, lockedTine);
@@ -513,6 +582,9 @@ void testSoundGenerator() {
     expect(pas1::generation::SoundGenerator::belongsToSection(
                "musicboxdecay", pas1::generation::VariationSection::oscillators),
            "music-box tine controls must belong to the oscillator lock section");
+    expect(pas1::generation::SoundGenerator::belongsToSection(
+               "ancientmix", pas1::generation::VariationSection::oscillators),
+           "ancient-instrument controls must belong to the oscillator lock section");
     expect(pas1::generation::SoundGenerator::belongsToSection(
                "filtercutoff", pas1::generation::VariationSection::filterAndEnvelope),
            "filter controls must belong to the filter lock section");
@@ -581,6 +653,7 @@ void testSampleRateAndBlockStress() {
 int main() {
     testOscillator();
     testMetallicTine();
+    testAncientInstrumentVoices();
     testEnvelope();
     testWavetableOscillator();
     testFilter();

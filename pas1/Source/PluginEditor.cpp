@@ -121,6 +121,20 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     pas1::diagnostics::startupTrace("editor.oscillatorPage.created");
     addAndMakeVisible(*oscillatorPage);
     oscillatorPage->setVisible(false);
+    const ParameterPageTheme ancientTheme{
+        juce::Colour{0xff291523}, juce::Colour{0xff42243a},
+        juce::Colour{0xffef8fc3}, juce::Colour{0xffffedf6},
+        juce::Colour{0xffd9a7c0}, juce::Colour{0xff8d5675}
+    };
+    ancientPage = std::make_unique<ParameterPage>(
+        processor_.parameters, "ANCIENT VOICES / AULOS · LYRE · BRONZE",
+        std::vector<ParameterPageGroup>{
+            {"INSTRUMENT & BLEND", {"ancientinstrument", "ancientmix", "ancientbrightness"}},
+            {"RESONANCE & CHARACTER", {"ancientdecay", "ancientair", "ancientdetune"}}
+        },
+        ancientTheme);
+    addAndMakeVisible(*ancientPage);
+    ancientPage->setVisible(false);
     pas1::diagnostics::startupTrace("editor.filterPage.before");
     filterPage = makePage("FILTERS & ENVELOPES", {
         {"FILTER", {"filtertype", "filtercutoff", "filterresonance", "filterdrive"}},
@@ -202,7 +216,7 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     addAndMakeVisible(*modulationTabs);
     modulationTabs->setVisible(false);
 
-    for (auto* button : {&homeButton, &oscillatorButton, &filterButton, &modulationButton,
+    for (auto* button : {&homeButton, &oscillatorButton, &ancientButton, &filterButton, &modulationButton,
                          &morphButton, &generatorButton, &soundDNAButton, &effectsButton,
                          &presetButton, &settingsButton, &resetDefaultsButton,
                          &storeSnapshotAButton, &storeSnapshotBButton,
@@ -217,6 +231,8 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
                                         && button != &storeSnapshotBButton);
         addAndMakeVisible(*button);
     }
+    ancientButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour{0xff65314d});
+    ancientButton.setColour(juce::TextButton::textColourOnId, juce::Colour{0xffffb6db});
     resetDefaultsButton.setButtonText("RESET");
     storeSnapshotAButton.setVisible(false);
     storeSnapshotBButton.setVisible(false);
@@ -224,6 +240,7 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
 
     homeButton.onClick = [this] { showPage(Page::home); };
     oscillatorButton.onClick = [this] { showPage(Page::oscillators); };
+    ancientButton.onClick = [this] { showPage(Page::ancient); };
     filterButton.onClick = [this] { showPage(Page::filters); };
     modulationButton.onClick = [this] { showPage(Page::modulation); };
     morphButton.onClick = [this] { showPage(Page::morph); };
@@ -408,6 +425,7 @@ void Pas1AudioProcessorEditor::paint(juce::Graphics& graphics) {
         switch (currentPage) {
             case Page::home: return "MUSIC BOX SYNTHESIZER  /  PERFORMANCE";
             case Page::oscillators: return "SOUND DESIGN  /  OSCILLATORS";
+            case Page::ancient: return "ANCIENT VOICES  /  AULOS · LYRE · BRONZE";
             case Page::filters: return "SOUND DESIGN  /  FILTERS & ENVELOPES";
             case Page::modulation: return "SOUND DESIGN  /  MODULATION";
             case Page::morph: return "MORPH MATRIX  /  AUTOMATABLE X-Y";
@@ -685,8 +703,8 @@ void Pas1AudioProcessorEditor::resized() {
         return;
     }
     const auto width = getWidth();
-    const std::array<std::pair<juce::TextButton*, int>, 10> tabs{{
-        {&homeButton, 58}, {&oscillatorButton, 62}, {&filterButton, 68},
+    const std::array<std::pair<juce::TextButton*, int>, 11> tabs{{
+        {&homeButton, 58}, {&oscillatorButton, 62}, {&ancientButton, 90}, {&filterButton, 68},
         {&modulationButton, 70}, {&morphButton, 62}, {&generatorButton, 72},
         {&soundDNAButton, 68}, {&effectsButton, 48}, {&presetButton, 70},
         {&settingsButton, 76}
@@ -709,8 +727,9 @@ void Pas1AudioProcessorEditor::resized() {
     engineButton.setBounds(width - 164, 20, 128, 30);
 
     const auto pageBounds = juce::Rectangle<int>{30, 116, width - 60, getHeight() - 142};
-    const std::array<std::pair<const char*, juce::Component*>, 10> pages{{
+    const std::array<std::pair<const char*, juce::Component*>, 11> pages{{
         {"oscillatorPage", oscillatorPage.get()},
+        {"ancientPage", ancientPage.get()},
         {"filterPage", filterPage.get()},
         {"effectsPage", effectsPage.get()},
         {"settingsPage", settingsPage.get()},
@@ -800,6 +819,7 @@ void Pas1AudioProcessorEditor::showPage(Page page) {
     const auto home = page == Page::home;
     engineEditor->setVisible(page == Page::allParameters);
     oscillatorPage->setVisible(page == Page::oscillators);
+    ancientPage->setVisible(page == Page::ancient);
     filterPage->setVisible(page == Page::filters);
     modulationTabs->setVisible(page == Page::modulation);
     morphPanel->setVisible(page == Page::morph);
@@ -816,6 +836,7 @@ void Pas1AudioProcessorEditor::showPage(Page page) {
 
     homeButton.setToggleState(page == Page::home, juce::dontSendNotification);
     oscillatorButton.setToggleState(page == Page::oscillators, juce::dontSendNotification);
+    ancientButton.setToggleState(page == Page::ancient, juce::dontSendNotification);
     filterButton.setToggleState(page == Page::filters, juce::dontSendNotification);
     modulationButton.setToggleState(page == Page::modulation, juce::dontSendNotification);
     morphButton.setToggleState(page == Page::morph, juce::dontSendNotification);

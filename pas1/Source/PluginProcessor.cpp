@@ -78,6 +78,12 @@ struct EngineParameterPointers {
     std::atomic<float>* musicBoxResonance = nullptr;
     std::atomic<float>* musicBoxInharmonicity = nullptr;
     std::atomic<float>* musicBoxStrike = nullptr;
+    std::atomic<float>* ancientInstrument = nullptr;
+    std::atomic<float>* ancientMix = nullptr;
+    std::atomic<float>* ancientBrightness = nullptr;
+    std::atomic<float>* ancientDecay = nullptr;
+    std::atomic<float>* ancientAir = nullptr;
+    std::atomic<float>* ancientPipeDetune = nullptr;
     std::atomic<float>* filterType = nullptr;
     std::atomic<float>* filterCutoff = nullptr;
     std::atomic<float>* filterResonance = nullptr;
@@ -190,6 +196,16 @@ public:
             engineParameters_.musicBoxResonance->load(),
             engineParameters_.musicBoxInharmonicity->load(),
             engineParameters_.musicBoxStrike->load());
+        ancientInstrument_.trigger(
+            static_cast<pas1::dsp::AncientInstrument>(std::clamp(
+                static_cast<int>(std::round(engineParameters_.ancientInstrument->load())),
+                0, 4)),
+            targetFrequency, static_cast<float>(currentSampleRate_),
+            engineParameters_.ancientBrightness->load(),
+            engineParameters_.ancientDecay->load(),
+            engineParameters_.ancientAir->load(),
+            engineParameters_.ancientPipeDetune->load(),
+            static_cast<std::uint32_t>(midiNoteNumber * 131 + voiceIndex_ * 977 + 1));
         updateEnvelopeParameters();
         if (!legatoTransition)
             envelope_.noteOn();
@@ -262,6 +278,11 @@ public:
         const auto subLevel = engineParameters_.subLevel->load();
         const auto noiseLevel = engineParameters_.noiseLevel->load();
         const auto musicBoxMix = std::clamp(engineParameters_.musicBoxMix->load(), 0.0f, 1.0f);
+        const auto ancientMode = std::clamp(
+            static_cast<int>(std::round(engineParameters_.ancientInstrument->load())), 0, 4);
+        const auto ancientMix = ancientMode == 0
+                                    ? 0.0f
+                                    : std::clamp(engineParameters_.ancientMix->load(), 0.0f, 1.0f);
         const auto detuneRatio = std::pow(2.0f, engineParameters_.oscillator2Detune->load() / 1200.0f);
         const auto hardSync = engineParameters_.oscillator2HardSync->load() >= 0.5f;
         const auto fmAmount = engineParameters_.oscillator2FmAmount->load();
@@ -450,6 +471,11 @@ public:
                     frequency, static_cast<float>(sampleRate));
                 signal = signal * (1.0f - musicBoxMix) + tineSample * musicBoxMix;
             }
+            if (ancientMix > 0.0f) {
+                const auto ancientSample = ancientInstrument_.nextSample(
+                    frequency, static_cast<float>(sampleRate));
+                signal = signal * (1.0f - ancientMix) + ancientSample * ancientMix;
+            }
             if (filterDrive > 0.0f) {
                 const auto drive = 1.0f + std::clamp(filterDrive, 0.0f, 1.0f) * 9.0f;
                 signal = std::tanh(signal * drive) / std::tanh(drive);
@@ -531,6 +557,7 @@ private:
     pas1::dsp::Oscillator oscillator3_;
     pas1::dsp::Oscillator subOscillator_;
     pas1::dsp::MetallicTine musicBoxTine_;
+    pas1::dsp::AncientInstrumentVoice ancientInstrument_;
     pas1::dsp::AmpEnvelope envelope_;
     pas1::dsp::AmpEnvelope filterEnvelope_;
     pas1::dsp::StateVariableFilter filter_;
@@ -888,6 +915,24 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
         juce::ParameterID{"musicboxstrike", 1}, "Music Box Strike",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.58f));
     layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID{"ancientinstrument", 1}, "Ancient Instrument",
+        juce::StringArray{"Off", "Aulos", "Lyre", "Bronze Gong", "Found Metal"}, 0));
+    layout.add(std::make_unique<Parameter>(
+        juce::ParameterID{"ancientmix", 1}, "Ancient Voice Mix",
+        juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
+    layout.add(std::make_unique<Parameter>(
+        juce::ParameterID{"ancientbrightness", 1}, "Ancient Voice Brightness",
+        juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.68f));
+    layout.add(std::make_unique<Parameter>(
+        juce::ParameterID{"ancientdecay", 1}, "Ancient Voice Decay",
+        juce::NormalisableRange<float>{0.08f, 20.0f, 0.001f, 0.4f}, 3.2f, " s"));
+    layout.add(std::make_unique<Parameter>(
+        juce::ParameterID{"ancientair", 1}, "Ancient Voice Air / Strike",
+        juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.42f));
+    layout.add(std::make_unique<Parameter>(
+        juce::ParameterID{"ancientdetune", 1}, "Aulos Pipe Detune",
+        juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.32f));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID{"filtertype", 1}, "Filter Type",
         juce::StringArray{"Low-pass", "High-pass", "Band-pass", "Notch"}, 0));
     layout.add(std::make_unique<Parameter>(
@@ -1121,6 +1166,12 @@ Pas1AudioProcessor::Pas1AudioProcessor()
     engineParameters.musicBoxInharmonicity =
         parameters.getRawParameterValue("musicboxinharmonicity");
     engineParameters.musicBoxStrike = parameters.getRawParameterValue("musicboxstrike");
+    engineParameters.ancientInstrument = parameters.getRawParameterValue("ancientinstrument");
+    engineParameters.ancientMix = parameters.getRawParameterValue("ancientmix");
+    engineParameters.ancientBrightness = parameters.getRawParameterValue("ancientbrightness");
+    engineParameters.ancientDecay = parameters.getRawParameterValue("ancientdecay");
+    engineParameters.ancientAir = parameters.getRawParameterValue("ancientair");
+    engineParameters.ancientPipeDetune = parameters.getRawParameterValue("ancientdetune");
     engineParameters.filterType = parameters.getRawParameterValue("filtertype");
     engineParameters.filterCutoff = &morphValues[static_cast<std::size_t>(pas1::dsp::MorphParameter::filterCutoff)];
     engineParameters.filterResonance = &morphValues[static_cast<std::size_t>(pas1::dsp::MorphParameter::filterResonance)];
@@ -1392,7 +1443,7 @@ juce::AudioProcessorEditor* Pas1AudioProcessor::createEditor() {
 void Pas1AudioProcessor::getStateInformation(juce::MemoryBlock& destinationData) {
     auto state = parameters.copyState();
     writeMorphState(state);
-    state.setProperty("stateVersion", 7, nullptr);
+    state.setProperty("stateVersion", 8, nullptr);
     if (const auto xml = state.createXml())
         copyXmlToBinary(*xml, destinationData);
 }
@@ -1401,9 +1452,11 @@ void Pas1AudioProcessor::setStateInformation(const void* data, int sizeInBytes) 
     if (const auto xml = getXmlFromBinary(data, sizeInBytes)) {
         if (xml->hasTagName(parameters.state.getType())) {
             auto restoredState = juce::ValueTree::fromXml(*xml);
-            constexpr std::array<const char*, 6> newParameterIds{
+            constexpr std::array<const char*, 12> newParameterIds{
                 "musicboxmix", "musicboxbrightness", "musicboxdecay",
-                "musicboxresonance", "musicboxinharmonicity", "musicboxstrike"};
+                "musicboxresonance", "musicboxinharmonicity", "musicboxstrike",
+                "ancientinstrument", "ancientmix", "ancientbrightness",
+                "ancientdecay", "ancientair", "ancientdetune"};
             for (const auto* parameterId : newParameterIds) {
                 const juce::String id{parameterId};
                 if (restoredState.getChildWithProperty("id", id).isValid())
@@ -1418,7 +1471,7 @@ void Pas1AudioProcessor::setStateInformation(const void* data, int sizeInBytes) 
                     "value", parameter->getDefaultValue(), nullptr);
                 restoredState.addChild(migratedParameterState, -1, nullptr);
             }
-            restoredState.setProperty("stateVersion", 7, nullptr);
+            restoredState.setProperty("stateVersion", 8, nullptr);
             parameters.replaceState(restoredState);
             readMorphState(parameters.state);
         }

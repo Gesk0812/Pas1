@@ -4,6 +4,7 @@
 #include <juce_dsp/juce_dsp.h>
 
 #include "DSP/AmpEnvelope.h"
+#include "DSP/AncientInstrument.h"
 #include "DSP/EffectsChain.h"
 #include "DSP/ModulationMatrix.h"
 #include "DSP/MorphMatrix.h"

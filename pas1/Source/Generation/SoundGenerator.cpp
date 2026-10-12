@@ -73,6 +73,9 @@ bool isVariationTarget(std::string_view id) {
            || id == "musicboxdecay" || id == "musicboxresonance"
            || id == "musicboxinharmonicity"
            || id == "musicboxstrike"
+           || id == "ancientinstrument" || id == "ancientmix"
+           || id == "ancientbrightness" || id == "ancientdecay"
+           || id == "ancientair" || id == "ancientdetune"
            || id == "osc3wave" || id == "osc3level" || id == "pulsewidth"
            || id == "sublevel" || id == "noiselevel" || id == "filtertype"
            || id == "filtercutoff" || id == "filterresonance" || id == "filterdrive"
@@ -91,6 +94,9 @@ bool isTextureTarget(std::string_view id) {
            || id == "musicboxdecay" || id == "musicboxresonance"
            || id == "musicboxinharmonicity"
            || id == "musicboxstrike"
+           || id == "ancientinstrument" || id == "ancientmix"
+           || id == "ancientbrightness" || id == "ancientdecay"
+           || id == "ancientair" || id == "ancientdetune"
            || id == "filterresonance" || id == "filterdrive" || id == "pulsewidth"
            || startsWith(id, "chorus") || startsWith(id, "phaser")
            || startsWith(id, "delay") || startsWith(id, "reverb") || startsWith(id, "eq");
@@ -133,7 +139,8 @@ bool SoundGenerator::belongsToSection(std::string_view id,
         case VariationSection::oscillators:
             return id == "waveform" || startsWith(id, "osc") || id == "wavetablescan"
                    || id == "unisonvoices" || id == "unisondetune" || id == "pulsewidth"
-                   || id == "sublevel" || id == "noiselevel" || startsWith(id, "musicbox");
+                   || id == "sublevel" || id == "noiselevel"
+                   || startsWith(id, "musicbox") || startsWith(id, "ancient");
         case VariationSection::filterAndEnvelope:
             return startsWith(id, "filter") || id == "attack" || id == "decay"
                    || id == "sustain" || id == "release";
@@ -163,6 +170,7 @@ std::vector<ParameterValue> SoundGenerator::createRecipe(
     auto complexity = unit(controls.harmonicComplexity);
     auto bassWeight = unit(controls.bassWeight);
     auto stereoWidth = unit(controls.stereoWidth);
+    int ancientMode = 0;
 
     if (contains(text, "warm") || contains(text, "analog") || contains(text, "мягк")) {
         character = std::max(character, 0.72f);
@@ -210,6 +218,25 @@ std::vector<ParameterValue> SoundGenerator::createRecipe(
         setRaw(result, "musicboxinharmonicity", 0.82f);
         setRaw(result, "musicboxstrike", 0.62f);
     }
+    const auto aulosRequested = contains(text, "aulos") || contains(text, "reed pipe")
+                               || contains(text, "аулос");
+    const auto lyreRequested = contains(text, "lyre") || contains(text, "lyra")
+                               || contains(text, "лира");
+    const auto foundMetalRequested = contains(text, "found metal")
+                                    || contains(text, "scrap metal")
+                                    || contains(text, "металлолом");
+    const auto gongRequested = contains(text, "gong") || contains(text, "bronze")
+                               || contains(text, "гонг") || contains(text, "бронз")
+                               || contains(text, "odyssey") || contains(text, "одиссея")
+                               || contains(text, "ancient") || contains(text, "древн");
+    if (aulosRequested)
+        ancientMode = 1;
+    else if (lyreRequested)
+        ancientMode = 2;
+    else if (foundMetalRequested)
+        ancientMode = 4;
+    else if (gongRequested)
+        ancientMode = 3;
 
     setRaw(result, "filtercutoff", blend(260.0f, 11000.0f, brightness));
     setRaw(result, "filterresonance", blend(0.12f, 0.62f, aggression));
@@ -241,6 +268,19 @@ std::vector<ParameterValue> SoundGenerator::createRecipe(
     setRaw(result, "delaymix", space * 0.24f);
     setRaw(result, "attack", blend(0.004f, 0.7f, movement) * (1.0f - aggression * 0.8f));
     setRaw(result, "release", blend(0.12f, 2.2f, space));
+    if (ancientMode > 0) {
+        setRaw(result, "ancientinstrument", static_cast<float>(ancientMode));
+        setRaw(result, "ancientmix", 0.88f);
+        setRaw(result, "ancientbrightness", blend(0.42f, 0.88f, brightness));
+        setRaw(result, "ancientdecay", blend(2.2f, 12.0f, space));
+        setRaw(result, "ancientair", blend(0.2f, 0.78f, complexity));
+        setRaw(result, "ancientdetune", aulosRequested ? 0.5f : 0.24f);
+        setRaw(result, "osc1level", 0.12f);
+        setRaw(result, "osc2level", 0.035f);
+        setRaw(result, "osc3level", 0.02f);
+        setRaw(result, "sublevel", 0.0f);
+        setRaw(result, "noiselevel", 0.0f);
+    }
 
     for (auto& parameter : result) {
         if (std::find(lockedParameters.begin(), lockedParameters.end(), parameter.id)
