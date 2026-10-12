@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 
 namespace pas1::dsp {
 namespace {
@@ -34,12 +35,13 @@ float harmonicSample(int waveform, double phase, int maximumHarmonic) noexcept {
 } // namespace
 
 const WavetableOscillator::Bank& WavetableOscillator::getBank() {
-    static const Bank bank = [] {
-        Bank result{};
+    static const auto bank = [] {
+        auto result = std::make_unique<Bank>();
         for (int waveform = 0; waveform < 4; ++waveform) {
             for (int level = 0; level < mipLevels; ++level) {
                 const auto maximumHarmonic = 1 << level;
-                auto& table = result[static_cast<std::size_t>(waveform)][static_cast<std::size_t>(level)];
+                auto& table = (*result)[static_cast<std::size_t>(waveform)]
+                                       [static_cast<std::size_t>(level)];
                 float peak = 0.0f;
                 for (int sample = 0; sample < tableSize; ++sample) {
                     const auto phase = static_cast<double>(sample) / tableSize;
@@ -54,7 +56,7 @@ const WavetableOscillator::Bank& WavetableOscillator::getBank() {
         }
         return result;
     }();
-    return bank;
+    return *bank;
 }
 
 void WavetableOscillator::initialize() {
