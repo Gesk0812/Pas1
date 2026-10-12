@@ -199,6 +199,11 @@ juce::File PresetManager::getUserPresetDirectory() const {
         .getChildFile("Presets");
 }
 
+bool PresetManager::isUserPresetFile(const juce::File& file) const {
+    return file.existsAsFile()
+           && file.getFileExtension().equalsIgnoreCase(".pas1preset")
+           && file.getParentDirectory() == getUserPresetDirectory();
+}
 std::vector<PresetManager::PresetInfo> PresetManager::getUserPresets() const {
     std::vector<PresetInfo> presets;
     const auto directory = getUserPresetDirectory();
