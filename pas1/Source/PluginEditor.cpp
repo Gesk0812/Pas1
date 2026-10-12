@@ -278,6 +278,7 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
                         ranged->endChangeGesture();
                     }
                 }
+                safeThis->processor_.resetMorphConfiguration();
             }));
     };
 

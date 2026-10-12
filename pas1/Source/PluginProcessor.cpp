@@ -1416,6 +1416,15 @@ void Pas1AudioProcessor::randomizeMorphCorners(std::uint32_t seed) {
     writeMorphState(parameters.state);
 }
 
+void Pas1AudioProcessor::resetMorphConfiguration() {
+    for (int index = parameters.state.getNumProperties() - 1; index >= 0; --index) {
+        const auto property = parameters.state.getPropertyName(index);
+        if (property.toString().startsWith("morph"))
+            parameters.state.removeProperty(property, nullptr);
+    }
+    readMorphState(parameters.state);
+}
+
 void Pas1AudioProcessor::setMorphParameterLocked(int parameter, bool locked) {
     if (parameter < 0 || parameter >= static_cast<int>(pas1::dsp::MorphMatrix::parameterCount))
         return;

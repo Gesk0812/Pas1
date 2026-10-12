@@ -366,6 +366,16 @@ bool PresetManager::loadBuiltInPreset(int index) {
         if (auto* parameter = parameters_.getParameter(setting.id))
             parameter->setValueNotifyingHost(parameter->convertTo0to1(setting.value));
     }
+
+    // Factory presets contain no Morph Matrix state. Remove any prior user-captured
+    // corners/locks so they cannot keep overriding the newly loaded parameter values.
+    for (int index = parameters_.state.getNumProperties() - 1; index >= 0; --index) {
+        const auto property = parameters_.state.getPropertyName(index);
+        if (property.toString().startsWith("morph"))
+            parameters_.state.removeProperty(property, nullptr);
+    }
+    if (stateLoadedCallback_)
+        stateLoadedCallback_();
     return true;
 }
 
