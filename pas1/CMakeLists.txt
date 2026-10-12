@@ -44,7 +44,9 @@ if(PAS1_BUILD_PLUGIN)
         DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     )
     FetchContent_MakeAvailable(JUCE)
-
+if(MSVC)
+    add_link_options(/MAP)
+endif()
     juce_add_plugin(PAS1
         COMPANY_NAME "PAS Audio"
         BUNDLE_ID "audio.pas.pas1"
