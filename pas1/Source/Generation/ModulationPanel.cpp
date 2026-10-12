@@ -18,18 +18,18 @@ void styleCombo(juce::ComboBox& combo) {
 ModulationPanel::RouteRow::RouteRow(juce::AudioProcessorValueTreeState& state,
                                     std::size_t routeIndex)
     : routeIndex_(routeIndex) {
-    juce::StringArray sourceNames{
+    auto sourceNames = pas1::ui::utf8StringArray({
         "НЧ-ген. 1", "НЧ-ген. 2", "НЧ-ген. 3", "НЧ-ген. 4",
         "Огиб. громкости", "Огиб. фильтра", "Скорость нажатия",
-        "Колесо модуляции", "Изгиб высоты", "Отслеж. клавиши", "Случайное на ноту"};
-    juce::StringArray destinationNames{
+        "Колесо модуляции", "Изгиб высоты", "Отслеж. клавиши", "Случайное на ноту"});
+    auto destinationNames = pas1::ui::utf8StringArray({
         "Высота", "Ур. осц. 1", "Позиция волны", "Срез фильтра", "Резонанс",
-        "Глубина ЧМ", "Панорама", "Искажение", "Реверберация", "Морфинг X", "Морфинг Y"};
+        "Глубина ЧМ", "Панорама", "Искажение", "Реверберация", "Морфинг X", "Морфинг Y"});
     source.addItemList(sourceNames, 1);
     destination.addItemList(destinationNames, 1);
-    polarity.addItemList({"Биполярная", "Униполярная"}, 1);
-    source.setTooltip("Выберите источник сигнала: НЧ-генератор, огибающую, MIDI-контроллер или другие источники.");
-    destination.setTooltip("Выберите параметр синтезатора, на который действует источник модуляции.");
+    polarity.addItemList(pas1::ui::utf8StringArray({"Биполярная", "Униполярная"}), 1);
+    source.setTooltip(pas1::ui::utf8String("Выберите источник сигнала: НЧ-генератор, огибающую, MIDI-контроллер или другие источники."));
+    destination.setTooltip(pas1::ui::utf8String("Выберите параметр синтезатора, на который действует источник модуляции."));
     for (auto* combo : {&source, &destination, &polarity}) {
         styleCombo(*combo);
         addAndMakeVisible(*combo);
@@ -43,13 +43,13 @@ ModulationPanel::RouteRow::RouteRow(juce::AudioProcessorValueTreeState& state,
     amount.setColour(juce::Slider::textBoxTextColourId, primaryText);
     amount.setColour(juce::Slider::textBoxBackgroundColourId, fieldBackground);
     amount.setColour(juce::Slider::textBoxOutlineColourId, juce::Colour{0xff745332});
-    amount.setTooltip("Глубина модуляции. Отрицательное значение меняет её направление.");
+    amount.setTooltip(pas1::ui::utf8String("Глубина модуляции. Отрицательное значение меняет её направление."));
     addAndMakeVisible(amount);
 
     enabled.setClickingTogglesState(true);
     enabled.setColour(juce::ToggleButton::textColourId, secondaryText);
     enabled.setColour(juce::ToggleButton::tickColourId, accent);
-    enabled.setTooltip("Включает этот маршрут модуляции или обходит его.");
+    enabled.setTooltip(pas1::ui::utf8String("Включает этот маршрут модуляции или обходит его."));
     addAndMakeVisible(enabled);
 
     const auto prefix = "modroute" + std::to_string(routeIndex_ + 1);
@@ -103,7 +103,7 @@ ModulationPanel::ModulationPanel(juce::AudioProcessorValueTreeState& state) {
         "№", "ИСТОЧНИК", "ЦЕЛЬ", "ГЛУБИНА", "ПОЛЯРНОСТЬ", "ВКЛ."};
     for (std::size_t index = 0; index < headings.size(); ++index) {
         auto& label = columnLabels[index];
-        label.setText(headings[index], juce::dontSendNotification);
+        label.setText(pas1::ui::utf8String(headings[index]), juce::dontSendNotification);
         label.setFont(juce::FontOptions{9.0f, juce::Font::bold});
         label.setColour(juce::Label::textColourId, secondaryText);
         label.setJustificationType(juce::Justification::centredLeft);
