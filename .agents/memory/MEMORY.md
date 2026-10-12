@@ -1,0 +1,1 @@
+- [JUCE UTF-8 UI text](juce-utf8-ui-text.md) — decode non-ASCII literals with `String::fromUTF8`; `/utf-8` alone does not change JUCE's ASCII narrow-string constructor.
