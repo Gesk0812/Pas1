@@ -59,4 +59,5 @@ jobs:
             pas1/build/PAS1_artefacts/Release/Standalone/
             pas1/build/PAS1_artefacts/VST3/
             pas1/build/PAS1_artefacts/Standalone/
+            pas1/build/**/*.map
           if-no-files-found: error
