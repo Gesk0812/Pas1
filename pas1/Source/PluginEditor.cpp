@@ -31,6 +31,34 @@ void styleLabel(juce::Label& label, const juce::String& title) {
     label.setJustificationType(juce::Justification::centred);
     label.setColour(juce::Label::textColourId, muted);
 }
+
+struct EnvelopePlot {
+    float left = 0.0f;
+    float right = 0.0f;
+    float top = 0.0f;
+    float bottom = 0.0f;
+    float attackX = 0.0f;
+    float decayX = 0.0f;
+    float sustainY = 0.0f;
+    float releaseX = 0.0f;
+};
+
+EnvelopePlot makeEnvelopePlot(int editorWidth, float attack, float decay,
+                              float sustain, float release) {
+    EnvelopePlot plot;
+    plot.left = static_cast<float>(std::max(550, editorWidth / 2 + 50));
+    plot.right = static_cast<float>(editorWidth - 54);
+    plot.top = 252.0f;
+    plot.bottom = 358.0f;
+    const auto width = plot.right - plot.left;
+    const auto total = std::max(0.001f, attack + decay + release);
+    plot.attackX = plot.left + width * attack / total;
+    plot.decayX = plot.attackX + width * decay / total;
+    plot.sustainY = plot.bottom - std::clamp(sustain, 0.0f, 1.0f)
+                                      * (plot.bottom - plot.top);
+    plot.releaseX = plot.right - width * release / total;
+    return plot;
+}
 } // namespace
 
 Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor)
@@ -437,32 +465,43 @@ void Pas1AudioProcessorEditor::paint(juce::Graphics& graphics) {
     graphics.setColour(accent);
     graphics.strokePath(wavePath, juce::PathStrokeType{1.7f});
 
-    const auto left = static_cast<float>(std::max(550, getWidth() / 2 + 50));
-    const auto right = static_cast<float>(getWidth() - 54);
-    const auto top = 252.0f;
-    const auto bottom = 358.0f;
-    const auto graphWidth = right - left;
-    graphics.setColour(juce::Colour{0xff393641});
-    for (int line = 1; line <= 3; ++line) {
-        const auto y = top + (bottom - top) * static_cast<float>(line) / 4.0f;
-        graphics.drawLine(left, y, right, y, 1.0f);
-    }
     const auto attackSeconds = std::max(0.001f, readValue("attack", 0.01f));
     const auto decaySeconds = std::max(0.001f, readValue("decay", 0.15f));
     const auto releaseSeconds = std::max(0.001f, readValue("release", 0.2f));
     const auto sustainLevel = std::clamp(readValue("sustain", 0.75f), 0.0f, 1.0f);
-    const auto total = attackSeconds + decaySeconds + releaseSeconds;
-    const auto attackX = left + graphWidth * attackSeconds / total;
-    const auto decayX = attackX + graphWidth * decaySeconds / total;
-    const auto sustainY = bottom - sustainLevel * (bottom - top);
+    const auto plot = makeEnvelopePlot(getWidth(), attackSeconds, decaySeconds,
+                                       sustainLevel, releaseSeconds);
+    graphics.setColour(muted);
+    graphics.setFont(juce::FontOptions{9.0f});
+    graphics.drawText("DRAG POINTS TO EDIT ADSR",
+                      static_cast<int>(plot.left), 232,
+                      static_cast<int>(plot.right - plot.left), 15,
+                      juce::Justification::centredLeft);
+    graphics.setColour(juce::Colour{0xff393641});
+    for (int line = 1; line <= 3; ++line) {
+        const auto y = plot.top + (plot.bottom - plot.top) * static_cast<float>(line) / 4.0f;
+        graphics.drawLine(plot.left, y, plot.right, y, 1.0f);
+    }
     juce::Path envelope;
-    envelope.startNewSubPath(left, bottom);
-    envelope.lineTo(attackX, top);
-    envelope.lineTo(decayX, sustainY);
-    envelope.lineTo(right - graphWidth * releaseSeconds / total, sustainY);
-    envelope.lineTo(right, bottom);
+    envelope.startNewSubPath(plot.left, plot.bottom);
+    envelope.lineTo(plot.attackX, plot.top);
+    envelope.lineTo(plot.decayX, plot.sustainY);
+    envelope.lineTo(plot.releaseX, plot.sustainY);
+    envelope.lineTo(plot.right, plot.bottom);
     graphics.setColour(accent);
     graphics.strokePath(envelope, juce::PathStrokeType{2.0f});
+
+    const auto drawHandle = [&graphics](float x, float y) {
+        graphics.setColour(accent.withAlpha(0.24f));
+        graphics.fillEllipse(x - 8.0f, y - 8.0f, 16.0f, 16.0f);
+        graphics.setColour(background);
+        graphics.fillEllipse(x - 4.5f, y - 4.5f, 9.0f, 9.0f);
+        graphics.setColour(accent);
+        graphics.drawEllipse(x - 4.5f, y - 4.5f, 9.0f, 9.0f, 1.5f);
+    };
+    drawHandle(plot.attackX, plot.top);
+    drawHandle(plot.decayX, plot.sustainY);
+    drawHandle(plot.releaseX, plot.sustainY);
 }
 
 void Pas1AudioProcessorEditor::timerCallback() {
@@ -474,8 +513,134 @@ void Pas1AudioProcessorEditor::timerCallback() {
     displayedAudioPeak = std::max(audioTarget, displayedAudioPeak * 0.82f);
     displayedMidiActivity = std::max(midiTarget, displayedMidiActivity * 0.82f);
     repaint(416, 34, getWidth() - 446, 24);
-    if (currentPage == Page::home)
+    if (currentPage == Page::home) {
+        // These plots are painted by the editor itself, not by the child controls.
+        // Refresh them as host automation and the attached controls change parameters.
+        repaint(30, 120, getWidth() - 60, 270);
         spectrumAnalyzer->update();
+    }
+}
+
+void Pas1AudioProcessorEditor::mouseDown(const juce::MouseEvent& event) {
+    if (currentPage != Page::home)
+        return;
+
+    const auto readValue = [this](const char* id, float fallback) {
+        if (const auto* value = processor_.parameters.getRawParameterValue(id))
+            return value->load(std::memory_order_relaxed);
+        return fallback;
+    };
+    const auto plot = makeEnvelopePlot(
+        getWidth(), std::max(0.001f, readValue("attack", 0.01f)),
+        std::max(0.001f, readValue("decay", 0.15f)),
+        std::clamp(readValue("sustain", 0.75f), 0.0f, 1.0f),
+        std::max(0.001f, readValue("release", 0.2f)));
+    const std::array<std::pair<EnvelopeHandle, juce::Point<float>>, 3> handles{{
+        {EnvelopeHandle::attack, {plot.attackX, plot.top}},
+        {EnvelopeHandle::decaySustain, {plot.decayX, plot.sustainY}},
+        {EnvelopeHandle::release, {plot.releaseX, plot.sustainY}}
+    }};
+
+    auto closest = EnvelopeHandle::none;
+    auto closestDistanceSquared = 18.0f * 18.0f;
+    for (const auto& [handle, point] : handles) {
+        const auto distance = event.position - point;
+        const auto distanceSquared = distance.x * distance.x + distance.y * distance.y;
+        if (distanceSquared < closestDistanceSquared) {
+            closestDistanceSquared = distanceSquared;
+            closest = handle;
+        }
+    }
+    if (closest == EnvelopeHandle::none)
+        return;
+
+    endEnvelopeGesture();
+    activeEnvelopeHandle = closest;
+    const auto beginGesture = [this](const char* id) {
+        if (auto* parameter = processor_.parameters.getParameter(id)) {
+            parameter->beginChangeGesture();
+            envelopeGestureParameters[envelopeGestureParameterCount++] = parameter;
+        }
+    };
+    if (closest == EnvelopeHandle::attack) {
+        beginGesture("attack");
+    } else if (closest == EnvelopeHandle::decaySustain) {
+        beginGesture("decay");
+        beginGesture("sustain");
+    } else {
+        beginGesture("release");
+    }
+    setMouseCursor(juce::MouseCursor::DraggingHandCursor);
+}
+
+void Pas1AudioProcessorEditor::mouseDrag(const juce::MouseEvent& event) {
+    if (activeEnvelopeHandle != EnvelopeHandle::none)
+        updateEnvelopeFromGraph(event.position);
+}
+
+void Pas1AudioProcessorEditor::mouseUp(const juce::MouseEvent&) {
+    endEnvelopeGesture();
+}
+
+void Pas1AudioProcessorEditor::updateEnvelopeFromGraph(juce::Point<float> position) {
+    const auto readValue = [this](const char* id, float fallback) {
+        if (const auto* value = processor_.parameters.getRawParameterValue(id))
+            return value->load(std::memory_order_relaxed);
+        return fallback;
+    };
+    const auto attackSeconds = std::max(0.001f, readValue("attack", 0.01f));
+    const auto decaySeconds = std::max(0.001f, readValue("decay", 0.15f));
+    const auto releaseSeconds = std::max(0.001f, readValue("release", 0.2f));
+    const auto plot = makeEnvelopePlot(getWidth(), attackSeconds, decaySeconds,
+                                       readValue("sustain", 0.75f), releaseSeconds);
+    const auto width = std::max(1.0f, plot.right - plot.left);
+    const auto fraction = std::clamp((position.x - plot.left) / width, 0.02f, 0.98f);
+
+    const auto setValue = [this](const char* id, float value) {
+        if (auto* parameter = processor_.parameters.getParameter(id)) {
+            const auto range = parameter->getNormalisableRange();
+            const auto bounded = std::clamp(value, range.start, range.end);
+            parameter->setValueNotifyingHost(parameter->convertTo0to1(bounded));
+        }
+    };
+
+    switch (activeEnvelopeHandle) {
+        case EnvelopeHandle::attack: {
+            const auto remaining = decaySeconds + releaseSeconds;
+            setValue("attack", fraction * remaining / (1.0f - fraction));
+            break;
+        }
+        case EnvelopeHandle::decaySustain: {
+            const auto denominator = std::max(0.02f, 1.0f - fraction);
+            const auto nextDecay =
+                (fraction * (attackSeconds + releaseSeconds) - attackSeconds) / denominator;
+            const auto sustain = std::clamp(
+                (plot.bottom - position.y) / (plot.bottom - plot.top), 0.0f, 1.0f);
+            setValue("decay", nextDecay);
+            setValue("sustain", sustain);
+            break;
+        }
+        case EnvelopeHandle::release: {
+            const auto nextRelease =
+                (attackSeconds + decaySeconds) * (1.0f - fraction) / fraction;
+            setValue("release", nextRelease);
+            break;
+        }
+        case EnvelopeHandle::none:
+            break;
+    }
+    repaint(30, 212, getWidth() - 60, 176);
+}
+
+void Pas1AudioProcessorEditor::endEnvelopeGesture() {
+    for (std::size_t index = 0; index < envelopeGestureParameterCount; ++index) {
+        if (auto* parameter = envelopeGestureParameters[index])
+            parameter->endChangeGesture();
+        envelopeGestureParameters[index] = nullptr;
+    }
+    envelopeGestureParameterCount = 0;
+    activeEnvelopeHandle = EnvelopeHandle::none;
+    setMouseCursor(juce::MouseCursor::NormalCursor);
 }
 
 void Pas1AudioProcessorEditor::resized() {
