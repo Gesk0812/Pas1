@@ -43,6 +43,7 @@ struct EnvelopePlot {
     float decayX = 0.0f;
     float sustainY = 0.0f;
     float releaseX = 0.0f;
+    float holdFraction = 0.22f;
 };
 
 EnvelopePlot makeEnvelopePlot(int editorWidth, float attack, float decay,
@@ -54,11 +55,12 @@ EnvelopePlot makeEnvelopePlot(int editorWidth, float attack, float decay,
     plot.bottom = 358.0f;
     const auto width = plot.right - plot.left;
     const auto total = std::max(0.001f, attack + decay + release);
-    plot.attackX = plot.left + width * attack / total;
-    plot.decayX = plot.attackX + width * decay / total;
+    const auto timedWidth = width * (1.0f - plot.holdFraction);
+    plot.attackX = plot.left + timedWidth * attack / total;
+    plot.decayX = plot.attackX + timedWidth * decay / total;
     plot.sustainY = plot.bottom - std::clamp(sustain, 0.0f, 1.0f)
                                       * (plot.bottom - plot.top);
-    plot.releaseX = plot.right - width * release / total;
+    plot.releaseX = plot.decayX + width * plot.holdFraction;
     return plot;
 }
 } // namespace
@@ -341,6 +343,9 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     attack.setTextValueSuffix(" s");
     decay.setTextValueSuffix(" s");
     release.setTextValueSuffix(" s");
+    attack.setNumDecimalPlacesToDisplay(3);
+    decay.setNumDecimalPlacesToDisplay(3);
+    release.setNumDecimalPlacesToDisplay(3);
 
     keyboard.setColour(juce::MidiKeyboardComponent::whiteNoteColourId, juce::Colour{0xffeeeaf0});
     keyboard.setColour(juce::MidiKeyboardComponent::blackNoteColourId, juce::Colour{0xff34303b});
@@ -351,6 +356,22 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     addAndMakeVisible(keyboard);
 
     auto& state = processor_.parameters;
+    const auto setSliderDefault = [&state](const char* id, juce::Slider& slider) {
+        if (auto* parameter = state.getParameter(id)) {
+            slider.setDoubleClickReturnValue(
+                true, parameter->convertFrom0to1(parameter->getDefaultValue()));
+            slider.setTooltip(
+                slider.getTooltip()
+                + pas1::ui::utf8String(" Двойной щелчок возвращает заводское значение."));
+        }
+    };
+    setSliderDefault("attack", attack);
+    setSliderDefault("decay", decay);
+    setSliderDefault("sustain", sustain);
+    setSliderDefault("release", release);
+    setSliderDefault("master", master);
+    setSliderDefault("polyphony", voices);
+    setSliderDefault("glidetime", glideTime);
     waveformAttachment = std::make_unique<ComboBoxAttachment>(state, "waveform", waveform);
     attackAttachment = std::make_unique<SliderAttachment>(state, "attack", attack);
     decayAttachment = std::make_unique<SliderAttachment>(state, "decay", decay);
@@ -674,14 +695,19 @@ void Pas1AudioProcessorEditor::updateEnvelopeFromGraph(juce::Point<float> positi
 
     switch (activeEnvelopeHandle) {
         case EnvelopeHandle::attack: {
+            const auto timedFraction = std::clamp(
+                fraction / (1.0f - plot.holdFraction), 0.02f, 0.98f);
             const auto remaining = decaySeconds + releaseSeconds;
-            setValue("attack", fraction * remaining / (1.0f - fraction));
+            setValue("attack", timedFraction * remaining / (1.0f - timedFraction));
             break;
         }
         case EnvelopeHandle::decaySustain: {
-            const auto denominator = std::max(0.02f, 1.0f - fraction);
+            const auto timedFraction = std::clamp(
+                fraction / (1.0f - plot.holdFraction), 0.02f, 0.98f);
+            const auto denominator = std::max(0.02f, 1.0f - timedFraction);
             const auto nextDecay =
-                (fraction * (attackSeconds + releaseSeconds) - attackSeconds) / denominator;
+                (timedFraction * (attackSeconds + releaseSeconds) - attackSeconds)
+                / denominator;
             const auto sustain = std::clamp(
                 (plot.bottom - position.y) / (plot.bottom - plot.top), 0.0f, 1.0f);
             setValue("decay", nextDecay);
@@ -689,8 +715,11 @@ void Pas1AudioProcessorEditor::updateEnvelopeFromGraph(juce::Point<float> positi
             break;
         }
         case EnvelopeHandle::release: {
+            const auto timedFraction = std::clamp(
+                (fraction - plot.holdFraction) / (1.0f - plot.holdFraction),
+                0.02f, 0.98f);
             const auto nextRelease =
-                (attackSeconds + decaySeconds) * (1.0f - fraction) / fraction;
+                (attackSeconds + decaySeconds) * (1.0f - timedFraction) / timedFraction;
             setValue("release", nextRelease);
             break;
         }

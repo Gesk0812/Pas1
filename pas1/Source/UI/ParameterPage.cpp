@@ -152,22 +152,44 @@ private:
                 slider_.setTextValueSuffix(parameter->getLabel().isNotEmpty()
                                                ? " " + parameter->getLabel()
                                                : juce::String{});
-                 slider_.setColour(juce::Slider::trackColourId, theme_.accent);
-                 slider_.setColour(juce::Slider::thumbColourId, theme_.text);
-                 slider_.setColour(juce::Slider::textBoxTextColourId, theme_.text);
-                 slider_.setColour(juce::Slider::textBoxBackgroundColourId, theme_.rowBackground);
-                 slider_.setColour(juce::Slider::textBoxOutlineColourId, theme_.border);
+                slider_.setDoubleClickReturnValue(
+                    true, parameter->convertFrom0to1(parameter->getDefaultValue()));
+                if (id == "filtercutoff" || id.startsWith("lfo") && id.endsWith("rate"))
+                    slider_.setNumDecimalPlacesToDisplay(0);
+                else if (id.endsWith("attack") || id.endsWith("decay")
+                         || id.endsWith("release") || id == "glidetime")
+                    slider_.setNumDecimalPlacesToDisplay(3);
+                else
+                    slider_.setNumDecimalPlacesToDisplay(2);
+                slider_.setColour(juce::Slider::trackColourId, theme_.accent);
+                slider_.setColour(juce::Slider::thumbColourId, theme_.text);
+                slider_.setColour(juce::Slider::textBoxTextColourId, theme_.text);
+                slider_.setColour(juce::Slider::textBoxBackgroundColourId, theme_.rowBackground);
+                slider_.setColour(juce::Slider::textBoxOutlineColourId, theme_.border);
                 addAndMakeVisible(slider_);
                 sliderAttachment_ =
                     std::make_unique<SliderAttachment>(state, id, slider_);
             }
 
-            const auto tooltip = parameterTooltip(id);
-            if (tooltip.isNotEmpty()) {
-                label_.setTooltip(tooltip);
-                slider_.setTooltip(tooltip);
-                combo_.setTooltip(tooltip);
-                toggle_.setTooltip(tooltip);
+            auto tooltip = parameterTooltip(id);
+            if (tooltip.isEmpty())
+                tooltip = parameter->getName(64);
+            tooltip += pas1::ui::utf8String(" Заводское значение: ")
+                       + parameter->getText(parameter->getDefaultValue(), 8)
+                       + pas1::ui::utf8String(". Двойной щелчок по ползунку возвращает это значение.");
+            label_.setTooltip(tooltip);
+            slider_.setTooltip(tooltip);
+            combo_.setTooltip(tooltip);
+            toggle_.setTooltip(tooltip);
+            if (slider_.getParentComponent() != nullptr) {
+                const auto range = parameter->getNormalisableRange();
+                auto rangeHint = pas1::ui::utf8String("Диапазон: ")
+                                 + juce::String{range.start, 2}
+                                 + pas1::ui::utf8String(" — ")
+                                 + juce::String{range.end, 2};
+                if (parameter->getLabel().isNotEmpty())
+                    rangeHint += " " + parameter->getLabel();
+                slider_.setTooltip(tooltip + " " + rangeHint + ".");
             }
         }
 

@@ -38,6 +38,7 @@ private:
     void saveRecipe();
     void loadRecipe();
     void showMessage(const juce::String& message);
+    void updateRecipeExplanation();
     std::vector<std::string> getLockedParameters() const;
     pas1::generation::RecipeControls getRecipeControls() const;
     pas1::generation::VariationMode getVariationMode() const;
@@ -56,6 +57,7 @@ private:
         juce::TextButton{pas1::ui::utf8String("МОД.")},
         juce::TextButton{pas1::ui::utf8String("ЭФФ.")}};
     juce::Label amountLabel, modeLabel, seedLabel, lockedLabel, variationLabel;
+    juce::Label interpretationLabel;
     std::array<Slider, 9> controls{};
     std::array<juce::Label, 9> controlLabels{};
     std::array<juce::String, 9> controlNames{

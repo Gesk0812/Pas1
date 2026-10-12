@@ -129,6 +129,34 @@ void FilterGraphs::update() {
     repaint();
 }
 
+juce::Rectangle<float> FilterGraphs::responsePlotBounds() const noexcept {
+    const auto bounds = getLocalBounds().toFloat();
+    auto plot = juce::Rectangle<float>{bounds.getX() + 42.0f, bounds.getY() + 25.0f,
+                                       std::max(1.0f, bounds.getWidth() - 54.0f),
+                                       bounds.getHeight() * 0.44f};
+    plot.setHeight(std::min(plot.getHeight(), bounds.getHeight() * 0.46f));
+    return plot;
+}
+
+FilterGraphs::EnvelopeLayout FilterGraphs::envelopeLayout() const noexcept {
+    const auto bounds = getLocalBounds().toFloat();
+    const auto titleY = bounds.getY() + bounds.getHeight() * 0.61f;
+    EnvelopeLayout layout;
+    layout.bounds = {bounds.getX() + 18.0f, titleY + 14.0f,
+                     std::max(1.0f, bounds.getWidth() - 30.0f),
+                     std::max(1.0f, bounds.getBottom() - titleY - 20.0f)};
+
+    const auto total = std::max(0.001f, attack_ + decay_ + release_);
+    const auto timedWidth = layout.bounds.getWidth() * (1.0f - envelopeHoldFraction);
+    layout.attackX = layout.bounds.getX() + timedWidth * attack_ / total;
+    layout.decayX = layout.attackX + timedWidth * decay_ / total;
+    layout.releaseX = layout.decayX
+                      + layout.bounds.getWidth() * envelopeHoldFraction;
+    layout.sustainY = layout.bounds.getBottom()
+                      - std::clamp(sustain_, 0.0f, 1.0f) * layout.bounds.getHeight();
+    return layout;
+}
+
 void FilterGraphs::calculateResponse() noexcept {
     constexpr double pi = 3.14159265358979323846;
     const auto sampleRate = static_cast<double>(std::max(sampleRate_, 8000.0f));
@@ -161,6 +189,161 @@ void FilterGraphs::calculateResponse() noexcept {
     }
 }
 
+void FilterGraphs::beginParameterGesture(const char* id) {
+    if (gestureParameterCount_ >= gestureParameters_.size())
+        return;
+    if (auto* parameter = processor_.parameters.getParameter(id)) {
+        parameter->beginChangeGesture();
+        gestureParameters_[gestureParameterCount_++] = parameter;
+    }
+}
+
+void FilterGraphs::endParameterGestures() {
+    for (std::size_t index = 0; index < gestureParameterCount_; ++index) {
+        if (auto* parameter = gestureParameters_[index])
+            parameter->endChangeGesture();
+        gestureParameters_[index] = nullptr;
+    }
+    gestureParameterCount_ = 0;
+    activeHandle_ = DragHandle::none;
+    setMouseCursor(juce::MouseCursor::NormalCursor);
+}
+
+void FilterGraphs::setParameterValue(const char* id, float value) {
+    if (auto* parameter = processor_.parameters.getParameter(id)) {
+        const auto range = parameter->getNormalisableRange();
+        const auto bounded = std::clamp(value, range.start, range.end);
+        parameter->setValueNotifyingHost(parameter->convertTo0to1(bounded));
+    }
+}
+
+void FilterGraphs::mouseDown(const juce::MouseEvent& event) {
+    const auto position = event.position;
+    if (responsePlotBounds().contains(position)) {
+        endParameterGestures();
+        activeHandle_ = DragHandle::filterResponse;
+        beginParameterGesture("filtercutoff");
+        beginParameterGesture("filterresonance");
+        updateFromMouse(position);
+        setMouseCursor(juce::MouseCursor::DraggingHandCursor);
+        return;
+    }
+
+    const auto layout = envelopeLayout();
+    if (!layout.bounds.contains(position))
+        return;
+
+    const std::array<std::pair<DragHandle, juce::Point<float>>, 3> handles{{
+        {DragHandle::attack, {layout.attackX, layout.bounds.getY()}},
+        {DragHandle::decaySustain, {layout.decayX, layout.sustainY}},
+        {DragHandle::release, {layout.releaseX, layout.sustainY}}
+    }};
+    auto closest = DragHandle::none;
+    auto closestDistanceSquared = 24.0f * 24.0f;
+    for (const auto& [handle, point] : handles) {
+        const auto distance = position - point;
+        const auto distanceSquared = distance.x * distance.x + distance.y * distance.y;
+        if (distanceSquared < closestDistanceSquared) {
+            closestDistanceSquared = distanceSquared;
+            closest = handle;
+        }
+    }
+    if (closest == DragHandle::none)
+        return;
+
+    endParameterGestures();
+    activeHandle_ = closest;
+    if (closest == DragHandle::attack) {
+        beginParameterGesture("filterattack");
+    } else if (closest == DragHandle::decaySustain) {
+        beginParameterGesture("filterdecay");
+        beginParameterGesture("filtersustain");
+    } else {
+        beginParameterGesture("filterrelease");
+    }
+    updateFromMouse(position);
+    setMouseCursor(juce::MouseCursor::DraggingHandCursor);
+}
+
+void FilterGraphs::mouseDrag(const juce::MouseEvent& event) {
+    if (activeHandle_ != DragHandle::none)
+        updateFromMouse(event.position);
+}
+
+void FilterGraphs::mouseUp(const juce::MouseEvent&) {
+    endParameterGestures();
+}
+
+void FilterGraphs::updateFromMouse(juce::Point<float> position) {
+    if (activeHandle_ == DragHandle::filterResponse) {
+        const auto plot = responsePlotBounds();
+        const auto sampleRate = std::max(static_cast<double>(sampleRate_), 8000.0);
+        const auto minFrequency = std::min(20.0, sampleRate * 0.0025);
+        const auto maxFrequency = std::min(20000.0, sampleRate * 0.45);
+        const auto fraction = std::clamp(
+            (position.x - plot.getX()) / std::max(1.0f, plot.getWidth()), 0.0f, 1.0f);
+        const auto frequency = minFrequency
+                               * std::exp(std::log(maxFrequency / minFrequency) * fraction);
+        const auto resonance = std::clamp(
+            1.0f - (position.y - plot.getY()) / std::max(1.0f, plot.getHeight()),
+            0.0f, 1.0f);
+        setParameterValue("filtercutoff", static_cast<float>(frequency));
+        setParameterValue("filterresonance", resonance);
+        update();
+        return;
+    }
+
+    const auto layout = envelopeLayout();
+    const auto fraction = std::clamp(
+        (position.x - layout.bounds.getX()) / std::max(1.0f, layout.bounds.getWidth()),
+        0.02f, 0.98f);
+    const auto timedWidthFraction = 1.0f - envelopeHoldFraction;
+    const auto readValue = [this](const char* id, float fallback) {
+        if (const auto* value = processor_.parameters.getRawParameterValue(id))
+            return value->load(std::memory_order_relaxed);
+        return fallback;
+    };
+
+    switch (activeHandle_) {
+        case DragHandle::attack: {
+            const auto timedFraction = std::clamp(
+                fraction / timedWidthFraction, 0.02f, 0.98f);
+            const auto remaining = decay_ + release_;
+            setParameterValue("filterattack",
+                              timedFraction * remaining / (1.0f - timedFraction));
+            break;
+        }
+        case DragHandle::decaySustain: {
+            const auto timedFraction = std::clamp(
+                fraction / timedWidthFraction, 0.02f, 0.98f);
+            const auto nextDecay =
+                (timedFraction * (attack_ + release_) - attack_)
+                / std::max(0.02f, 1.0f - timedFraction);
+            const auto sustain = std::clamp(
+                (layout.bounds.getBottom() - position.y)
+                    / std::max(1.0f, layout.bounds.getHeight()),
+                0.0f, 1.0f);
+            setParameterValue("filterdecay", nextDecay);
+            setParameterValue("filtersustain", sustain);
+            break;
+        }
+        case DragHandle::release: {
+            const auto timedFraction = std::clamp(
+                (fraction - envelopeHoldFraction) / timedWidthFraction,
+                0.02f, 0.98f);
+            const auto attack = readValue("filterattack", attack_);
+            const auto decay = readValue("filterdecay", decay_);
+            setParameterValue("filterrelease",
+                              (attack + decay) * (1.0f - timedFraction) / timedFraction);
+            break;
+        }
+        case DragHandle::none:
+        case DragHandle::filterResponse:
+            return;
+    }
+    update();
+}
+
 void FilterGraphs::paint(juce::Graphics& graphics) {
     auto bounds = getLocalBounds().toFloat();
     graphics.setColour(juce::Colour{panelColour});
@@ -178,9 +361,7 @@ void FilterGraphs::paint(juce::Graphics& graphics) {
     const auto minFrequency = std::min(20.0, graphSampleRate * 0.0025);
     const auto maxFrequency = std::min(20000.0, graphSampleRate * 0.45);
     const auto logRange = std::log(maxFrequency / minFrequency);
-    auto responsePlot = juce::Rectangle<float>{bounds.getX() + 42.0f, bounds.getY() + 25.0f,
-                                                bounds.getWidth() - 54.0f, bounds.getHeight() * 0.44f};
-    responsePlot.setHeight(std::min(responsePlot.getHeight(), bounds.getHeight() * 0.46f));
+    auto responsePlot = responsePlotBounds();
     const auto yForDb = [&responsePlot](float db) {
         return responsePlot.getBottom() - (db + 60.0f) / 84.0f * responsePlot.getHeight();
     };
@@ -226,6 +407,25 @@ void FilterGraphs::paint(juce::Graphics& graphics) {
     graphics.setColour(juce::Colour{accentColour});
     graphics.strokePath(response, juce::PathStrokeType{1.7f});
 
+    const auto clampedCutoff = std::clamp(static_cast<double>(cutoffHz_),
+                                          minFrequency, maxFrequency);
+    const auto cutoffFraction = static_cast<float>(
+        std::log(clampedCutoff / minFrequency) / logRange);
+    const auto cutoffX = responsePlot.getX() + responsePlot.getWidth() * cutoffFraction;
+    const auto responseIndex = cutoffFraction
+                               * static_cast<float>(responseDb_.size() - 1);
+    const auto lowerIndex = static_cast<std::size_t>(std::clamp(
+        juce::roundToInt(responseIndex), 0,
+        static_cast<int>(responseDb_.size() - 1)));
+    const auto cutoffY = yForDb(responseDb_[lowerIndex]);
+    graphics.setColour(juce::Colour{accentColour}.withAlpha(0.5f));
+    graphics.drawVerticalLine(juce::roundToInt(cutoffX), responsePlot.getY(),
+                              responsePlot.getBottom());
+    graphics.setColour(juce::Colour{textColour});
+    graphics.fillEllipse(cutoffX - 4.5f, cutoffY - 4.5f, 9.0f, 9.0f);
+    graphics.setColour(juce::Colour{accentColour});
+    graphics.drawEllipse(cutoffX - 5.0f, cutoffY - 5.0f, 10.0f, 10.0f, 1.5f);
+
     const auto envelopeTitleY = bounds.getY() + bounds.getHeight() * 0.61f;
     const auto depthText = pas1::ui::utf8String("ОГИБАЮЩАЯ ФИЛЬТРА • ГЛУБИНА ")
                            + juce::String{envelopeAmount_ * 4.0f, 1}
@@ -235,30 +435,31 @@ void FilterGraphs::paint(juce::Graphics& graphics) {
     graphics.drawText(depthText, 12, juce::roundToInt(envelopeTitleY), getWidth() - 24, 12,
                       juce::Justification::centredLeft);
 
-    auto envelopePlot = juce::Rectangle<float>{bounds.getX() + 18.0f,
-                                                envelopeTitleY + 14.0f,
-                                                bounds.getWidth() - 30.0f,
-                                                bounds.getBottom() - envelopeTitleY - 20.0f};
+    const auto layout = envelopeLayout();
+    auto envelopePlot = layout.bounds;
     if (envelopePlot.getHeight() < 14.0f)
         return;
-    const auto total = std::max(0.001f, attack_ + decay_ + release_);
-    const auto hold = total * 0.22f;
-    const auto full = attack_ + decay_ + hold + release_;
-    const auto attackX = envelopePlot.getX() + envelopePlot.getWidth() * attack_ / full;
-    const auto decayX = attackX + envelopePlot.getWidth() * decay_ / full;
-    const auto releaseX = envelopePlot.getRight()
-                          - envelopePlot.getWidth() * release_ / full;
-    const auto sustainY = envelopePlot.getBottom()
-                          - std::clamp(sustain_, 0.0f, 1.0f) * envelopePlot.getHeight();
     graphics.setColour(juce::Colour{gridColour});
     graphics.drawHorizontalLine(juce::roundToInt(envelopePlot.getBottom()),
                                 envelopePlot.getX(), envelopePlot.getRight());
     juce::Path envelope;
     envelope.startNewSubPath(envelopePlot.getX(), envelopePlot.getBottom());
-    envelope.lineTo(attackX, envelopePlot.getY());
-    envelope.lineTo(decayX, sustainY);
-    envelope.lineTo(releaseX, sustainY);
+    envelope.lineTo(layout.attackX, envelopePlot.getY());
+    envelope.lineTo(layout.decayX, layout.sustainY);
+    envelope.lineTo(layout.releaseX, layout.sustainY);
     envelope.lineTo(envelopePlot.getRight(), envelopePlot.getBottom());
     graphics.setColour(juce::Colour{accentColour});
     graphics.strokePath(envelope, juce::PathStrokeType{1.4f});
+
+    const auto drawHandle = [&graphics](float x, float y) {
+        graphics.setColour(juce::Colour{accentColour}.withAlpha(0.24f));
+        graphics.fillEllipse(x - 7.0f, y - 7.0f, 14.0f, 14.0f);
+        graphics.setColour(juce::Colour{panelColour});
+        graphics.fillEllipse(x - 3.5f, y - 3.5f, 7.0f, 7.0f);
+        graphics.setColour(juce::Colour{accentColour});
+        graphics.drawEllipse(x - 3.5f, y - 3.5f, 7.0f, 7.0f, 1.3f);
+    };
+    drawHandle(layout.attackX, envelopePlot.getY());
+    drawHandle(layout.decayX, layout.sustainY);
+    drawHandle(layout.releaseX, layout.sustainY);
 }

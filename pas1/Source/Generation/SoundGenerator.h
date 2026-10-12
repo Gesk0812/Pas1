@@ -30,6 +30,11 @@ struct RecipeControls {
     float stereoWidth = 0.35f;
 };
 
+struct RecipeInterpretation {
+    std::vector<std::string> recognizedTraits;
+    std::vector<std::string> unsupportedWords;
+};
+
 enum class VariationMode {
     fullRandom,
     subtle,
@@ -52,6 +57,8 @@ enum class VariationSection {
 
 class SoundGenerator {
 public:
+    static RecipeInterpretation analyzeDescription(const std::string& description);
+
     static std::vector<ParameterValue> createRecipe(
         const std::vector<ParameterValue>& base, const std::string& description,
         const RecipeControls& controls,
