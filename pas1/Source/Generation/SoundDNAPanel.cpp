@@ -12,9 +12,12 @@ const juce::Colour text{0xfff4e8cf};
 const juce::Colour muted{0xffbba483};
 const juce::Colour outline{0xff745332};
 
-const std::array<const char*, pas1::dsp::SoundDNAProfile::featureCount> featureNames{
-    "Яркость", "Гармоническая сложность", "Плотность", "Движение", "Агрессивность",
-    "Ширина стерео", "Вес баса", "Пространство", "Текстура", "Характер огибающей"};
+const std::array<juce::String, pas1::dsp::SoundDNAProfile::featureCount> featureNames{
+    pas1::ui::utf8String("Яркость"), pas1::ui::utf8String("Гармоническая сложность"),
+    pas1::ui::utf8String("Плотность"), pas1::ui::utf8String("Движение"),
+    pas1::ui::utf8String("Агрессивность"), pas1::ui::utf8String("Ширина стерео"),
+    pas1::ui::utf8String("Вес баса"), pas1::ui::utf8String("Пространство"),
+    pas1::ui::utf8String("Текстура"), pas1::ui::utf8String("Характер огибающей")};
 
 void styleButton(juce::TextButton& button) {
     button.setColour(juce::TextButton::buttonColourId, background);
@@ -37,7 +40,7 @@ SoundDNAPanel::SoundDNAPanel(Pas1AudioProcessor& processor) : processor_(process
     }
     presetA.setSelectedId(1, juce::dontSendNotification);
     presetB.setSelectedId(5, juce::dontSendNotification);
-    similarMatches.setTextWhenNothingSelected("Сначала найдите похожие пресеты");
+    similarMatches.setTextWhenNothingSelected(pas1::ui::utf8String("Сначала найдите похожие пресеты"));
     styleCombo(presetA);
     styleCombo(presetB);
     styleCombo(similarMatches);
@@ -58,9 +61,9 @@ SoundDNAPanel::SoundDNAPanel(Pas1AudioProcessor& processor) : processor_(process
 
     for (auto* label : {&presetALabel, &presetBLabel, &blendLabel, &status})
         label->setColour(juce::Label::textColourId, muted);
-    presetALabel.setText("ПРЕСЕТ A", juce::dontSendNotification);
-    presetBLabel.setText("ПРЕСЕТ B", juce::dontSendNotification);
-    blendLabel.setText("СМЕШИВАНИЕ ДНК", juce::dontSendNotification);
+    presetALabel.setText(pas1::ui::utf8String("ПРЕСЕТ A"), juce::dontSendNotification);
+    presetBLabel.setText(pas1::ui::utf8String("ПРЕСЕТ B"), juce::dontSendNotification);
+    blendLabel.setText(pas1::ui::utf8String("СМЕШИВАНИЕ ДНК"), juce::dontSendNotification);
     for (auto* label : {&presetALabel, &presetBLabel, &blendLabel, &status})
         addAndMakeVisible(*label);
 
@@ -131,7 +134,7 @@ void SoundDNAPanel::analyzeCurrent() {
     currentProfile = pas1::dsp::SoundDNA::analyze(captureParameters());
     pendingProfile.reset();
     displayProfile = currentProfile;
-    setStatus("Текущий пресет проанализирован по параметрам синтезатора.");
+    setStatus(pas1::ui::utf8String("Текущий пресет проанализирован по параметрам синтезатора."));
     repaint();
 }
 
@@ -160,9 +163,10 @@ void SoundDNAPanel::findSimilar() {
     }
     if (!similarPresetIndices.empty()) {
         similarMatches.setSelectedId(1, juce::dontSendNotification);
-        setStatus("Наиболее похожие заводские пресеты: " + results + ".");
+        setStatus(pas1::ui::utf8String("Наиболее похожие заводские пресеты: ")
+                  + results + pas1::ui::utf8String("."));
     } else {
-        setStatus("Похожих заводских пресетов не найдено.");
+        setStatus(pas1::ui::utf8String("Похожих заводских пресетов не найдено."));
     }
     repaint();
 }
@@ -176,8 +180,10 @@ void SoundDNAPanel::compareToBuiltIn() {
     pendingProfile.reset();
     const auto difference = pas1::dsp::SoundDNA::distance(currentProfile, other);
     displayProfile = currentProfile;
-    setStatus("Расстояние до пресета «" + PresetManager::getBuiltInPresetInfo(index).name + "»: "
-              + juce::String(difference, 3) + " (0 — совпадение, 1 — максимальное различие).");
+    setStatus(pas1::ui::utf8String("Расстояние до пресета «")
+              + PresetManager::getBuiltInPresetInfo(index).name
+              + pas1::ui::utf8String("»: ") + juce::String(difference, 3)
+              + pas1::ui::utf8String(" (0 — совпадение, 1 — максимальное различие)."));
     repaint();
 }
 
@@ -190,9 +196,11 @@ void SoundDNAPanel::blendSelected() {
     const auto second = builtInProfile(secondIndex);
     pendingProfile = pas1::dsp::SoundDNA::blend(first, second, getBlendAmount());
     displayProfile = *pendingProfile;
-    setStatus("Смешаны профили пресетов «"
-              + PresetManager::getBuiltInPresetInfo(firstIndex).name + "» и «"
-              + PresetManager::getBuiltInPresetInfo(secondIndex).name + "».");
+    setStatus(pas1::ui::utf8String("Смешаны профили пресетов «")
+              + PresetManager::getBuiltInPresetInfo(firstIndex).name
+              + pas1::ui::utf8String("» и «")
+              + PresetManager::getBuiltInPresetInfo(secondIndex).name
+              + pas1::ui::utf8String("»."));
     repaint();
 }
 
@@ -210,8 +218,9 @@ void SoundDNAPanel::exploreSoundSpace() {
     pendingProfile = pas1::dsp::SoundDNA::blend(
         currentProfile, builtInProfile(farthestIndex), getBlendAmount());
     displayProfile = *pendingProfile;
-    setStatus("Создан промежуточный профиль между текущим звуком и пресетом «"
-              + PresetManager::getBuiltInPresetInfo(farthestIndex).name + "».");
+    setStatus(pas1::ui::utf8String("Создан промежуточный профиль между текущим звуком и пресетом «")
+              + PresetManager::getBuiltInPresetInfo(farthestIndex).name
+              + pas1::ui::utf8String("»."));
     repaint();
 }
 
@@ -231,7 +240,7 @@ void SoundDNAPanel::generateFromDNA() {
     currentProfile = pas1::dsp::SoundDNA::analyze(captureParameters());
     displayProfile = currentProfile;
     pendingProfile.reset();
-    setStatus("Звук создан по ДНК. Оставьте его или верните прежнее состояние.");
+    setStatus(pas1::ui::utf8String("Звук создан по ДНК. Оставьте его или верните прежнее состояние."));
     repaint();
 }
 
@@ -239,7 +248,7 @@ void SoundDNAPanel::keepCurrent() {
     previewOpen = false;
     originalState = processor_.parameters.copyState();
     pendingProfile.reset();
-    setStatus("Текущий звук сохранён как новый исходный.");
+    setStatus(pas1::ui::utf8String("Текущий звук сохранён как новый исходный."));
 }
 
 void SoundDNAPanel::revert() {
@@ -248,7 +257,7 @@ void SoundDNAPanel::revert() {
     processor_.parameters.replaceState(originalState.createCopy());
     previewOpen = false;
     analyzeCurrent();
-    setStatus("Предыдущий звук восстановлен.");
+    setStatus(pas1::ui::utf8String("Предыдущий звук восстановлен."));
 }
 
 void SoundDNAPanel::loadSelectedMatch() {
@@ -258,7 +267,7 @@ void SoundDNAPanel::loadSelectedMatch() {
     if (processor_.presetManager.loadBuiltInPreset(
             similarPresetIndices[static_cast<std::size_t>(selected)])) {
         analyzeCurrent();
-        setStatus("Загружен выбранный похожий заводской пресет.");
+        setStatus(pas1::ui::utf8String("Загружен выбранный похожий заводской пресет."));
     }
 }
 

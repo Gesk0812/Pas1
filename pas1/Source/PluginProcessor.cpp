@@ -895,7 +895,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
         juce::ParameterID{"osc1octave", 1}, "Октава осц. 1", -3, 3, 0));
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"osc1fine", 1}, "Точная настройка осц. 1",
-        juce::NormalisableRange<float>{-100.0f, 100.0f, 0.1f}, 0.0f, " центов"));
+        juce::NormalisableRange<float>{-100.0f, 100.0f, 0.1f}, 0.0f,
+        pas1::ui::utf8String(" центов")));
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"osc1phase", 1}, "Фаза осц. 1",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
@@ -906,7 +907,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
         juce::ParameterID{"unisonvoices", 1}, "Голоса унисона", 1, 7, 1));
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"unisondetune", 1}, "Расстройка унисона",
-        juce::NormalisableRange<float>{0.0f, 50.0f, 0.1f}, 12.0f, " центов"));
+        juce::NormalisableRange<float>{0.0f, 50.0f, 0.1f}, 12.0f,
+        pas1::ui::utf8String(" центов")));
     layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterChoice>>(
         juce::ParameterID{"osc2wave", 1}, "Форма волны осц. 2",
         pas1::ui::utf8StringArray({"Синус", "Треугольник", "Пила", "Прямоугольник"}), 0));
@@ -915,7 +917,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.2f));
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"osc2detune", 1}, "Расстройка осц. 2",
-        juce::NormalisableRange<float>{-100.0f, 100.0f, 0.1f}, 0.0f, " центов"));
+        juce::NormalisableRange<float>{-100.0f, 100.0f, 0.1f}, 0.0f,
+        pas1::ui::utf8String(" центов")));
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"osc2phase", 1}, "Смещение фазы осц. 2",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
@@ -1625,7 +1628,7 @@ juce::String Pas1AudioProcessor::getMorphParameterName(int parameter) {
         "Глубина ЧМ", "Насыщ. фильтра", "Искажение", "Ширина стерео", "Реверберация"};
     if (parameter < 0 || parameter >= static_cast<int>(names.size()))
         return {};
-    return names[static_cast<std::size_t>(parameter)];
+    return pas1::ui::utf8String(names[static_cast<std::size_t>(parameter)]);
 }
 
 void Pas1AudioProcessor::writeMorphState(juce::ValueTree& state) const {

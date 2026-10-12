@@ -3,6 +3,7 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 
 #include "DSP/ModulationMatrix.h"
+#include "UI/Utf8Text.h"
 
 #include <array>
 #include <memory>
@@ -29,7 +30,7 @@ private:
         juce::ComboBox destination;
         juce::Slider amount;
         juce::ComboBox polarity;
-        juce::ToggleButton enabled{"ВКЛ"};
+        juce::ToggleButton enabled{pas1::ui::utf8String("ВКЛ")};
         std::unique_ptr<ComboBoxAttachment> sourceAttachment;
         std::unique_ptr<ComboBoxAttachment> destinationAttachment;
         std::unique_ptr<SliderAttachment> amountAttachment;

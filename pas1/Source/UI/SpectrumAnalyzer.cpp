@@ -1,4 +1,5 @@
 #include "SpectrumAnalyzer.h"
+#include "Utf8Text.h"
 
 #include <algorithm>
 #include <cmath>
@@ -58,7 +59,8 @@ void SpectrumAnalyzer::paint(juce::Graphics& graphics) {
 
     graphics.setColour(analyzerText);
     graphics.setFont(juce::FontOptions{9.0f, juce::Font::bold});
-    graphics.drawText("СПЕКТР ВЫХОДА", 8, 4, 130, 12, juce::Justification::centredLeft);
+    graphics.drawText(pas1::ui::utf8String("СПЕКТР ВЫХОДА"), 8, 4, 130, 12,
+                      juce::Justification::centredLeft);
 
     const auto plot = getLocalBounds().reduced(8)
                           .withTrimmedTop(16)
