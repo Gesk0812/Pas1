@@ -1,4 +1,5 @@
 #include "PresetsPanel.h"
+#include "UI/Utf8Text.h"
 
 #include <algorithm>
 
@@ -22,35 +23,35 @@ void styleCombo(juce::ComboBox& combo) {
 }
 
 juce::String displayCategory(const juce::String& category) {
-    if (category == "Bass") return "Бас";
-    if (category == "Keys") return "Клавиши";
-    if (category == "Lead") return "Лид";
-    if (category == "Pad") return "Пэд";
-    if (category == "FX") return "Эффекты";
-    if (category == "Pluck") return "Щипковые";
-    if (category == "Music Box") return "Музыкальная шкатулка";
-    if (category == "Ancient") return "Древние тембры";
-    if (category == "User") return "Пользовательские";
+    if (category == "Bass") return pas1::ui::utf8String("Бас");
+    if (category == "Keys") return pas1::ui::utf8String("Клавиши");
+    if (category == "Lead") return pas1::ui::utf8String("Лид");
+    if (category == "Pad") return pas1::ui::utf8String("Пэд");
+    if (category == "FX") return pas1::ui::utf8String("Эффекты");
+    if (category == "Pluck") return pas1::ui::utf8String("Щипковые");
+    if (category == "Music Box") return pas1::ui::utf8String("Музыкальная шкатулка");
+    if (category == "Ancient") return pas1::ui::utf8String("Древние тембры");
+    if (category == "User") return pas1::ui::utf8String("Пользовательские");
     return category;
 }
 }
 
 PresetsPanel::PresetsPanel(Pas1AudioProcessor& processor) : processor_(processor) {
-    search.setTextToShowWhenEmpty("Поиск пресетов по названию или категории", muted);
+    search.setTextToShowWhenEmpty(pas1::ui::utf8String("Поиск пресетов по названию или категории"), muted);
     search.setColour(juce::TextEditor::backgroundColourId, background);
     search.setColour(juce::TextEditor::textColourId, text);
     search.setColour(juce::TextEditor::outlineColourId, outline);
     search.onTextChange = [this] { refresh(); };
     addAndMakeVisible(search);
 
-    categoryFilter.setTextWhenNothingSelected("Все категории");
+    categoryFilter.setTextWhenNothingSelected(pas1::ui::utf8String("Все категории"));
     styleCombo(categoryFilter);
     categoryFilter.onChange = [this] { refresh(); };
     addAndMakeVisible(categoryFilter);
 
-    sortOrder.addItem("Название А–Я", 1);
-    sortOrder.addItem("Категория", 2);
-    sortOrder.addItem("Недавние", 3);
+    sortOrder.addItem(pas1::ui::utf8String("Название А–Я"), 1);
+    sortOrder.addItem(pas1::ui::utf8String("Категория"), 2);
+    sortOrder.addItem(pas1::ui::utf8String("Недавние"), 3);
     sortOrder.setSelectedId(1, juce::dontSendNotification);
     styleCombo(sortOrder);
     sortOrder.onChange = [this] { refresh(); };
@@ -86,18 +87,18 @@ PresetsPanel::PresetsPanel(Pas1AudioProcessor& processor) : processor_(processor
     importButton.onClick = [this] { importPreset(); };
     exportButton.onClick = [this] { exportSelected(); };
 
-    search.setTooltip("Поиск пресетов по названию и категории.");
-    categoryFilter.setTooltip("Показывает все пресеты, избранное или недавно использованные.");
-    sortOrder.setTooltip("Меняет порядок пресетов в текущем списке.");
-    loadButton.setTooltip("Загружает выбранный пресет и заменяет текущие настройки звука.");
-    favoriteButton.setTooltip("Добавляет выбранный пресет в избранное или удаляет его оттуда.");
-    saveButton.setTooltip("Обновляет выбранный пользовательский пресет. Заводские пресеты перезаписать нельзя.");
-    saveAsButton.setTooltip("Сохраняет текущий звук как отдельный пользовательский пресет.");
-    duplicateButton.setTooltip("Создаёт редактируемую копию выбранного заводского или пользовательского пресета.");
-    renameButton.setTooltip("Переименовывает пользовательский пресет, не меняя его звук.");
-    deleteButton.setTooltip("Безвозвратно удаляет файл выбранного пользовательского пресета.");
-    importButton.setTooltip("Добавляет пресет PAS 1 из файла .pas1preset.");
-    exportButton.setTooltip("Сохраняет выбранный пользовательский пресет в файл .pas1preset.");
+    search.setTooltip(pas1::ui::utf8String("Поиск пресетов по названию и категории."));
+    categoryFilter.setTooltip(pas1::ui::utf8String("Показывает все пресеты, избранное или недавно использованные."));
+    sortOrder.setTooltip(pas1::ui::utf8String("Меняет порядок пресетов в текущем списке."));
+    loadButton.setTooltip(pas1::ui::utf8String("Загружает выбранный пресет и заменяет текущие настройки звука."));
+    favoriteButton.setTooltip(pas1::ui::utf8String("Добавляет выбранный пресет в избранное или удаляет его оттуда."));
+    saveButton.setTooltip(pas1::ui::utf8String("Обновляет выбранный пользовательский пресет. Заводские пресеты перезаписать нельзя."));
+    saveAsButton.setTooltip(pas1::ui::utf8String("Сохраняет текущий звук как отдельный пользовательский пресет."));
+    duplicateButton.setTooltip(pas1::ui::utf8String("Создаёт редактируемую копию выбранного заводского или пользовательского пресета."));
+    renameButton.setTooltip(pas1::ui::utf8String("Переименовывает пользовательский пресет, не меняя его звук."));
+    deleteButton.setTooltip(pas1::ui::utf8String("Безвозвратно удаляет файл выбранного пользовательского пресета."));
+    importButton.setTooltip(pas1::ui::utf8String("Добавляет пресет PAS 1 из файла .pas1preset."));
+    exportButton.setTooltip(pas1::ui::utf8String("Сохраняет выбранный пользовательский пресет в файл .pas1preset."));
     refresh();
 }
 
@@ -113,7 +114,7 @@ void PresetsPanel::paint(juce::Graphics& graphics) {
     graphics.setColour(muted);
     graphics.setFont(juce::FontOptions{10.0f, juce::Font::bold});
     const auto factoryCount = juce::String(PresetManager::getBuiltInPresetCount());
-    graphics.drawText(juce::String{"БИБЛИОТЕКА ПРЕСЕТОВ  ·  ЗАВОДСКИХ ЗВУКОВ: "} + factoryCount,
+    graphics.drawText(pas1::ui::utf8String("БИБЛИОТЕКА ПРЕСЕТОВ  ·  ЗАВОДСКИХ ЗВУКОВ: ") + factoryCount,
                       16, 48, 300, 14, juce::Justification::centredLeft);
 }
 
@@ -162,7 +163,8 @@ void PresetsPanel::paintListBoxItem(int row, juce::Graphics& graphics, int width
     graphics.setColour(muted);
     graphics.setFont(juce::FontOptions{11.0f});
     graphics.drawText(displayCategory(entry.info.category)
-                          + (entry.info.isBuiltIn ? "  ·  Заводской" : "  ·  Пользовательский"),
+                          + (entry.info.isBuiltIn ? pas1::ui::utf8String("  ·  Заводской")
+                                                  : pas1::ui::utf8String("  ·  Пользовательский")),
                       14, 26, width - 140, 16, juce::Justification::centredLeft, true);
     if (isFavorite(entry.id)) {
         graphics.setColour(accent);
@@ -264,9 +266,9 @@ void PresetsPanel::rebuildCategoryFilter() {
     categories.sort(true);
 
     categoryFilter.clear(juce::dontSendNotification);
-    categoryFilter.addItem("Все категории", 1);
-    categoryFilter.addItem("Избранное", 2);
-    categoryFilter.addItem("Недавние", 3);
+    categoryFilter.addItem(pas1::ui::utf8String("Все категории"), 1);
+    categoryFilter.addItem(pas1::ui::utf8String("Избранное"), 2);
+    categoryFilter.addItem(pas1::ui::utf8String("Недавние"), 3);
     for (int index = 0; index < categories.size(); ++index)
         categoryFilter.addItem(displayCategory(categories[index]), 100 + index);
     auto nextId = 1;
@@ -288,7 +290,8 @@ void PresetsPanel::updateActionState() {
     saveButton.setEnabled(hasSelection && !entry->info.isBuiltIn);
     saveAsButton.setEnabled(true);
     favoriteButton.setButtonText(hasSelection && isFavorite(entry->id)
-                                     ? "УБРАТЬ ИЗ ИЗБРАННОГО" : "В ИЗБРАННОЕ");
+                                     ? pas1::ui::utf8String("УБРАТЬ ИЗ ИЗБРАННОГО")
+                                     : pas1::ui::utf8String("В ИЗБРАННОЕ"));
     duplicateButton.setEnabled(hasSelection);
     renameButton.setEnabled(hasSelection && !entry->info.isBuiltIn);
     deleteButton.setEnabled(hasSelection && !entry->info.isBuiltIn);
@@ -316,7 +319,7 @@ void PresetsPanel::loadSelected() {
     auto loadedName = entry->info.name;
     if (entry->builtInIndex >= 0) {
         if (!processor_.presetManager.loadBuiltInPreset(entry->builtInIndex)) {
-            showError("Не удалось загрузить выбранный заводской пресет.");
+            showError(pas1::ui::utf8String("Не удалось загрузить выбранный заводской пресет."));
             return;
         }
     } else {
@@ -327,7 +330,7 @@ void PresetsPanel::loadSelected() {
         }
     }
     processor_.presetManager.recordRecentPreset(entry->id);
-    setStatus("Загружен пресет «" + loadedName + "».");
+    setStatus(pas1::ui::utf8String("Загружен пресет «") + loadedName + pas1::ui::utf8String("»."));
     refresh();
 }
 
@@ -337,10 +340,11 @@ void PresetsPanel::toggleFavorite() {
         return;
     const auto wasFavorite = isFavorite(entry->id);
     if (!processor_.presetManager.setPresetFavorite(entry->id, !wasFavorite)) {
-        showError("Не удалось обновить файл библиотеки пресетов.");
+        showError(pas1::ui::utf8String("Не удалось обновить файл библиотеки пресетов."));
         return;
     }
-    setStatus(wasFavorite ? "Удалено из избранного." : "Добавлено в избранное.");
+    setStatus(wasFavorite ? pas1::ui::utf8String("Удалено из избранного.")
+                          : pas1::ui::utf8String("Добавлено в избранное."));
     refresh();
 }
 
@@ -351,9 +355,10 @@ void PresetsPanel::saveSelected() {
     const auto selected = *entry;
     juce::Component::SafePointer<PresetsPanel> safeThis(this);
     juce::AlertWindow::showOkCancelBox(
-        juce::MessageBoxIconType::QuestionIcon, "Обновить пользовательский пресет",
-        "Заменить пресет «" + selected.info.name + "» текущими настройками синтезатора?",
-        "Обновить", "Отмена", this,
+        juce::MessageBoxIconType::QuestionIcon, pas1::ui::utf8String("Обновить пользовательский пресет"),
+        pas1::ui::utf8String("Заменить пресет «") + selected.info.name
+            + pas1::ui::utf8String("» текущими настройками синтезатора?"),
+        pas1::ui::utf8String("Обновить"), pas1::ui::utf8String("Отмена"), this,
         juce::ModalCallbackFunction::create([safeThis, selected](int result) {
             if (safeThis == nullptr || result != 1)
                 return;
@@ -363,24 +368,25 @@ void PresetsPanel::saveSelected() {
                 safeThis->showError(error);
                 return;
             }
-            safeThis->setStatus("Выбранный пользовательский пресет обновлён.");
+            safeThis->setStatus(pas1::ui::utf8String("Выбранный пользовательский пресет обновлён."));
             safeThis->refresh();
         }));
 }
 
 void PresetsPanel::saveAs() {
     const auto* selected = selectedEntry();
-    const auto defaultName = selected != nullptr ? selected->info.name + " — копия"
-                                                  : juce::String{"Мой пресет"};
+    const auto defaultName = selected != nullptr
+                                 ? selected->info.name + pas1::ui::utf8String(" — копия")
+                                 : pas1::ui::utf8String("Мой пресет");
     const auto defaultCategory = selected != nullptr ? displayCategory(selected->info.category)
-                                                      : juce::String{"Пользовательские"};
-    auto* alert = new juce::AlertWindow("Сохранить пресет PAS 1",
-                                        "Сохраните текущий звук в пользовательскую библиотеку.",
+                                                      : pas1::ui::utf8String("Пользовательские");
+    auto* alert = new juce::AlertWindow(pas1::ui::utf8String("Сохранить пресет PAS 1"),
+                                        pas1::ui::utf8String("Сохраните текущий звук в пользовательскую библиотеку."),
                                         juce::MessageBoxIconType::NoIcon);
-    alert->addTextEditor("name", defaultName, "Название");
-    alert->addTextEditor("category", defaultCategory, "Категория");
-    alert->addButton("Сохранить", 1, juce::KeyPress{juce::KeyPress::returnKey});
-    alert->addButton("Отмена", 0, juce::KeyPress{juce::KeyPress::escapeKey});
+    alert->addTextEditor("name", defaultName, pas1::ui::utf8String("Название"));
+    alert->addTextEditor("category", defaultCategory, pas1::ui::utf8String("Категория"));
+    alert->addButton(pas1::ui::utf8String("Сохранить"), 1, juce::KeyPress{juce::KeyPress::returnKey});
+    alert->addButton(pas1::ui::utf8String("Отмена"), 0, juce::KeyPress{juce::KeyPress::escapeKey});
     juce::Component::SafePointer<juce::AlertWindow> safeAlert(alert);
     juce::Component::SafePointer<PresetsPanel> safeThis(this);
     alert->enterModalState(true, juce::ModalCallbackFunction::create([safeAlert, safeThis](int result) {
@@ -394,7 +400,7 @@ void PresetsPanel::saveAs() {
             safeThis->showError(error);
             return;
         }
-        safeThis->setStatus("Пользовательский пресет сохранён.");
+        safeThis->setStatus(pas1::ui::utf8String("Пользовательский пресет сохранён."));
         safeThis->selectPresetInLibrary(PresetManager::userPresetId(savedFile));
     }), true);
 }
@@ -404,12 +410,13 @@ void PresetsPanel::duplicateSelected() {
     if (entry == nullptr)
         return;
     const auto source = *entry;
-    auto* alert = new juce::AlertWindow("Дублировать пресет PAS 1",
-                                        "Создать редактируемую копию в пользовательской библиотеке.",
+    auto* alert = new juce::AlertWindow(pas1::ui::utf8String("Дублировать пресет PAS 1"),
+                                        pas1::ui::utf8String("Создать редактируемую копию в пользовательской библиотеке."),
                                         juce::MessageBoxIconType::NoIcon);
-    alert->addTextEditor("name", source.info.name + " — копия", "Новое название");
-    alert->addButton("Дублировать", 1, juce::KeyPress{juce::KeyPress::returnKey});
-    alert->addButton("Отмена", 0, juce::KeyPress{juce::KeyPress::escapeKey});
+    alert->addTextEditor("name", source.info.name + pas1::ui::utf8String(" — копия"),
+                         pas1::ui::utf8String("Новое название"));
+    alert->addButton(pas1::ui::utf8String("Дублировать"), 1, juce::KeyPress{juce::KeyPress::returnKey});
+    alert->addButton(pas1::ui::utf8String("Отмена"), 0, juce::KeyPress{juce::KeyPress::escapeKey});
     juce::Component::SafePointer<juce::AlertWindow> safeAlert(alert);
     juce::Component::SafePointer<PresetsPanel> safeThis(this);
     alert->enterModalState(true, juce::ModalCallbackFunction::create([safeAlert, safeThis, source](int result) {
@@ -427,7 +434,7 @@ void PresetsPanel::duplicateSelected() {
             safeThis->showError(error);
             return;
         }
-        safeThis->setStatus("Копия добавлена в пользовательскую библиотеку.");
+        safeThis->setStatus(pas1::ui::utf8String("Копия добавлена в пользовательскую библиотеку."));
         safeThis->selectPresetInLibrary(PresetManager::userPresetId(copy));
     }), true);
 }
@@ -437,12 +444,12 @@ void PresetsPanel::renameSelected() {
     if (entry == nullptr || entry->info.isBuiltIn)
         return;
     const auto source = *entry;
-    auto* alert = new juce::AlertWindow("Переименовать пользовательский пресет",
-                                        "Переименовать файл пресета и его метаданные.",
+    auto* alert = new juce::AlertWindow(pas1::ui::utf8String("Переименовать пользовательский пресет"),
+                                        pas1::ui::utf8String("Переименовать файл пресета и его метаданные."),
                                         juce::MessageBoxIconType::NoIcon);
-    alert->addTextEditor("name", source.info.name, "Новое название");
-    alert->addButton("Переименовать", 1, juce::KeyPress{juce::KeyPress::returnKey});
-    alert->addButton("Отмена", 0, juce::KeyPress{juce::KeyPress::escapeKey});
+    alert->addTextEditor("name", source.info.name, pas1::ui::utf8String("Новое название"));
+    alert->addButton(pas1::ui::utf8String("Переименовать"), 1, juce::KeyPress{juce::KeyPress::returnKey});
+    alert->addButton(pas1::ui::utf8String("Отмена"), 0, juce::KeyPress{juce::KeyPress::escapeKey});
     juce::Component::SafePointer<juce::AlertWindow> safeAlert(alert);
     juce::Component::SafePointer<PresetsPanel> safeThis(this);
     alert->enterModalState(true, juce::ModalCallbackFunction::create([safeAlert, safeThis, source](int result) {
@@ -455,7 +462,7 @@ void PresetsPanel::renameSelected() {
             safeThis->showError(error);
             return;
         }
-        safeThis->setStatus("Пользовательский пресет переименован.");
+        safeThis->setStatus(pas1::ui::utf8String("Пользовательский пресет переименован."));
         safeThis->selectPresetInLibrary(PresetManager::userPresetId(renamed));
     }), true);
 }
@@ -467,9 +474,10 @@ void PresetsPanel::deleteSelected() {
     const auto source = *entry;
     juce::Component::SafePointer<PresetsPanel> safeThis(this);
     juce::AlertWindow::showOkCancelBox(
-        juce::MessageBoxIconType::WarningIcon, "Удалить пользовательский пресет",
-        "Безвозвратно удалить пресет «" + source.info.name + "» из библиотеки?",
-        "Удалить", "Отмена", this,
+        juce::MessageBoxIconType::WarningIcon, pas1::ui::utf8String("Удалить пользовательский пресет"),
+        pas1::ui::utf8String("Безвозвратно удалить пресет «") + source.info.name
+            + pas1::ui::utf8String("» из библиотеки?"),
+        pas1::ui::utf8String("Удалить"), pas1::ui::utf8String("Отмена"), this,
         juce::ModalCallbackFunction::create([safeThis, source](int result) {
             if (safeThis == nullptr || result != 1)
                 return;
@@ -479,7 +487,7 @@ void PresetsPanel::deleteSelected() {
                 return;
             }
             safeThis->selectedId.clear();
-            safeThis->setStatus("Пользовательский пресет удалён.");
+            safeThis->setStatus(pas1::ui::utf8String("Пользовательский пресет удалён."));
             safeThis->refresh();
         }));
 }
