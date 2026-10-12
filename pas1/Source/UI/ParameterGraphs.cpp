@@ -1,4 +1,5 @@
 #include "ParameterGraphs.h"
+#include "Utf8Text.h"
 
 #include "../DSP/Oscillator.h"
 #include "../DSP/StateVariableFilter.h"
@@ -23,12 +24,12 @@ float parameterValue(Pas1AudioProcessor& processor, const char* id, float fallba
 
 juce::String waveformName(int waveform) {
     constexpr std::array<const char*, 4> names{"СИНУС", "ТРЕУГОЛЬНИК", "ПИЛА", "ИМПУЛЬС"};
-    return names[static_cast<std::size_t>(std::clamp(waveform, 0, 3))];
+    return pas1::ui::utf8String(names[static_cast<std::size_t>(std::clamp(waveform, 0, 3))]);
 }
 
 juce::String filterName(int type) {
     constexpr std::array<const char*, 4> names{"НЧ", "ВЧ", "ПОЛОСОВОЙ", "РЕЖЕКТОРНЫЙ"};
-    return names[static_cast<std::size_t>(std::clamp(type, 0, 3))];
+    return pas1::ui::utf8String(names[static_cast<std::size_t>(std::clamp(type, 0, 3))]);
 }
 } // namespace
 
@@ -53,7 +54,7 @@ void OscillatorWaveformGraph::paint(juce::Graphics& graphics) {
     graphics.setColour(juce::Colour{mutedColour});
     graphics.setFont(juce::FontOptions{9.0f});
     graphics.drawText("SCAN " + juce::String{scan, 2}
-                          + "    УРОВЕНЬ " + juce::String{level * 100.0f, 0} + "%",
+                          + pas1::ui::utf8String("    УРОВЕНЬ ") + juce::String{level * 100.0f, 0} + "%",
                       bounds.getWidth() - 210.0f, 5, 198, 14,
                       juce::Justification::centredRight);
 
@@ -168,7 +169,8 @@ void FilterGraphs::paint(juce::Graphics& graphics) {
     auto header = bounds.reduced(12.0f, 5.0f);
     graphics.setColour(juce::Colour{textColour});
     graphics.setFont(juce::FontOptions{9.5f, juce::Font::bold});
-    graphics.drawText("ЧАСТОТНЫЙ ОТКЛИК • " + filterName(std::max(0, filterType_)),
+    graphics.drawText(pas1::ui::utf8String("ЧАСТОТНЫЙ ОТКЛИК • ")
+                          + filterName(std::max(0, filterType_)),
                       header.removeFromTop(14.0f).toNearestInt(),
                       juce::Justification::centredLeft);
 
@@ -225,8 +227,9 @@ void FilterGraphs::paint(juce::Graphics& graphics) {
     graphics.strokePath(response, juce::PathStrokeType{1.7f});
 
     const auto envelopeTitleY = bounds.getY() + bounds.getHeight() * 0.61f;
-    const auto depthText = "ОГИБАЮЩАЯ ФИЛЬТРА • ГЛУБИНА "
-                           + juce::String{envelopeAmount_ * 4.0f, 1} + " ОКТ.";
+    const auto depthText = pas1::ui::utf8String("ОГИБАЮЩАЯ ФИЛЬТРА • ГЛУБИНА ")
+                           + juce::String{envelopeAmount_ * 4.0f, 1}
+                           + pas1::ui::utf8String(" ОКТ.");
     graphics.setColour(juce::Colour{textColour});
     graphics.setFont(juce::FontOptions{8.5f, juce::Font::bold});
     graphics.drawText(depthText, 12, juce::roundToInt(envelopeTitleY), getWidth() - 24, 12,
