@@ -1,16 +1,16 @@
 #include "ModulationPanel.h"
 
 namespace {
-const juce::Colour rowBackground{0xff22242a};
-const juce::Colour fieldBackground{0xff181a1f};
-const juce::Colour accent{0xffcf7bff};
-const juce::Colour primaryText{0xfff4f0f7};
-const juce::Colour secondaryText{0xffaaa4b1};
+const juce::Colour rowBackground{0xff3a271b};
+const juce::Colour fieldBackground{0xff24160f};
+const juce::Colour accent{0xffd8b36a};
+const juce::Colour primaryText{0xfff4e8cf};
+const juce::Colour secondaryText{0xffbba483};
 
 void styleCombo(juce::ComboBox& combo) {
     combo.setColour(juce::ComboBox::backgroundColourId, fieldBackground);
     combo.setColour(juce::ComboBox::textColourId, primaryText);
-    combo.setColour(juce::ComboBox::outlineColourId, juce::Colour{0xff393641});
+    combo.setColour(juce::ComboBox::outlineColourId, juce::Colour{0xff745332});
     combo.setColour(juce::ComboBox::arrowColourId, accent);
 }
 } // namespace
@@ -39,7 +39,7 @@ ModulationPanel::RouteRow::RouteRow(juce::AudioProcessorValueTreeState& state,
     amount.setColour(juce::Slider::thumbColourId, primaryText);
     amount.setColour(juce::Slider::textBoxTextColourId, primaryText);
     amount.setColour(juce::Slider::textBoxBackgroundColourId, fieldBackground);
-    amount.setColour(juce::Slider::textBoxOutlineColourId, juce::Colour{0xff393641});
+    amount.setColour(juce::Slider::textBoxOutlineColourId, juce::Colour{0xff745332});
     amount.setTooltip("Modulation depth. Negative values invert the modulation.");
     addAndMakeVisible(amount);
 

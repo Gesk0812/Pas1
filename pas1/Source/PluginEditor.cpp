@@ -9,17 +9,19 @@
 #include <utility>
 
 namespace {
-const juce::Colour background{0xff101114};
-const juce::Colour panel{0xff1a1c21};
-const juce::Colour accent{0xffcf7bff};
-const juce::Colour text{0xfff4f0f7};
-const juce::Colour muted{0xffaaa4b1};
+const juce::Colour background{0xff180e09};
+const juce::Colour panel{0xff302015};
+const juce::Colour accent{0xffd8b36a};
+const juce::Colour text{0xfff4e8cf};
+const juce::Colour muted{0xffbba483};
+const juce::Colour brassTrim{0xff745332};
+const juce::Colour darkWood{0xff21130d};
 
 void styleSlider(juce::Slider& slider) {
     slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 76, 22);
     slider.setColour(juce::Slider::rotarySliderFillColourId, accent);
-    slider.setColour(juce::Slider::rotarySliderOutlineColourId, juce::Colour{0xff393641});
+    slider.setColour(juce::Slider::rotarySliderOutlineColourId, brassTrim);
     slider.setColour(juce::Slider::thumbColourId, text);
     slider.setColour(juce::Slider::textBoxTextColourId, text);
     slider.setColour(juce::Slider::textBoxBackgroundColourId, panel);
@@ -204,6 +206,7 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
                          &storeSnapshotAButton, &storeSnapshotBButton,
                          &compareSnapshotsButton, &savePresetButton, &engineButton}) {
         button->setColour(juce::TextButton::buttonColourId, panel);
+        button->setColour(juce::TextButton::buttonOnColourId, juce::Colour{0xff49331f});
         button->setColour(juce::TextButton::textColourOffId, text);
         button->setColour(juce::TextButton::textColourOnId, accent);
         button->setClickingTogglesState(button != &savePresetButton
@@ -212,7 +215,7 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
                                         && button != &storeSnapshotBButton);
         addAndMakeVisible(*button);
     }
-    resetDefaultsButton.setVisible(false);
+    resetDefaultsButton.setButtonText("RESET");
     storeSnapshotAButton.setVisible(false);
     storeSnapshotBButton.setVisible(false);
     compareSnapshotsButton.setVisible(false);
@@ -285,7 +288,7 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     waveform.addItemList({"Sine", "Triangle", "Saw", "Square"}, 1);
     waveform.setColour(juce::ComboBox::backgroundColourId, panel);
     waveform.setColour(juce::ComboBox::textColourId, text);
-    waveform.setColour(juce::ComboBox::outlineColourId, juce::Colour{0xff393641});
+    waveform.setColour(juce::ComboBox::outlineColourId, brassTrim);
     waveform.setColour(juce::ComboBox::arrowColourId, accent);
     addAndMakeVisible(waveform);
     styleLabel(waveformLabel, "OSCILLATOR");
@@ -330,7 +333,7 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     voiceMode.addItemList({"Poly", "Mono", "Legato"}, 1);
     voiceMode.setColour(juce::ComboBox::backgroundColourId, panel);
     voiceMode.setColour(juce::ComboBox::textColourId, text);
-    voiceMode.setColour(juce::ComboBox::outlineColourId, juce::Colour{0xff393641});
+    voiceMode.setColour(juce::ComboBox::outlineColourId, brassTrim);
     voiceMode.setColour(juce::ComboBox::arrowColourId, accent);
     addAndMakeVisible(voiceMode);
     styleLabel(voiceModeLabel, "VOICE MODE");
@@ -349,7 +352,7 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     glideTime.setColour(juce::Slider::thumbColourId, text);
     glideTime.setColour(juce::Slider::textBoxTextColourId, text);
     glideTime.setColour(juce::Slider::textBoxBackgroundColourId, panel);
-    glideTime.setColour(juce::Slider::textBoxOutlineColourId, juce::Colour{0xff393641});
+    glideTime.setColour(juce::Slider::textBoxOutlineColourId, brassTrim);
     addAndMakeVisible(glideTime);
     styleLabel(glideTimeLabel, "GLIDE TIME");
     addAndMakeVisible(glideTimeLabel);
@@ -369,17 +372,39 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
 void Pas1AudioProcessorEditor::paint(juce::Graphics& graphics) {
     graphics.fillAll(background);
 
-    graphics.setColour(juce::Colour{0xff24212a});
-    graphics.fillRoundedRectangle(getLocalBounds().toFloat().reduced(14.0f), 16.0f);
+    const auto housing = getLocalBounds().toFloat().reduced(14.0f);
+    juce::ColourGradient wood{juce::Colour{0xff50321f}, housing.getX(), housing.getY(),
+                              darkWood, housing.getRight(), housing.getBottom(), false};
+    graphics.setGradientFill(wood);
+    graphics.fillRoundedRectangle(housing, 16.0f);
+    graphics.setColour(accent.withAlpha(0.68f));
+    graphics.drawRoundedRectangle(housing.reduced(1.0f), 15.0f, 1.2f);
+    graphics.setColour(brassTrim.withAlpha(0.9f));
+    graphics.drawRoundedRectangle(housing.reduced(5.0f), 12.0f, 0.8f);
+    for (const auto x : {housing.getX() + 12.0f, housing.getRight() - 16.0f}) {
+        for (const auto y : {housing.getY() + 12.0f, housing.getBottom() - 16.0f}) {
+            graphics.setColour(accent.withAlpha(0.82f));
+            graphics.fillEllipse(x, y, 4.0f, 4.0f);
+            graphics.setColour(juce::Colour{0xfff4dcaa});
+            graphics.fillEllipse(x + 1.0f, y + 1.0f, 1.4f, 1.4f);
+        }
+    }
 
     graphics.setColour(text);
     graphics.setFont(juce::FontOptions{32.0f, juce::Font::bold});
     graphics.drawText("PAS 1", 36, 18, 220, 40, juce::Justification::centredLeft);
+    graphics.setColour(accent);
+    graphics.setFont(juce::FontOptions{16.0f, juce::Font::bold});
+    graphics.drawText("♪", 246, 22, 24, 30, juce::Justification::centred);
+    graphics.setColour(muted);
+    graphics.setFont(juce::FontOptions{9.0f, juce::Font::bold});
+    graphics.drawText("WIND-UP SYNTH", 270, 30, 128, 14,
+                      juce::Justification::centredLeft);
     graphics.setColour(muted);
     graphics.setFont(juce::FontOptions{11.0f});
     const auto subtitle = [this]() -> juce::String {
         switch (currentPage) {
-            case Page::home: return "ADAPTIVE SYNTHESIZER  /  PERFORMANCE";
+            case Page::home: return "MUSIC BOX SYNTHESIZER  /  PERFORMANCE";
             case Page::oscillators: return "SOUND DESIGN  /  OSCILLATORS";
             case Page::filters: return "SOUND DESIGN  /  FILTERS & ENVELOPES";
             case Page::modulation: return "SOUND DESIGN  /  MODULATION";
@@ -398,33 +423,40 @@ void Pas1AudioProcessorEditor::paint(juce::Graphics& graphics) {
     graphics.setFont(juce::FontOptions{9.0f, juce::Font::bold});
     graphics.setColour(muted);
     graphics.drawText("MIDI", 420, 40, 34, 12, juce::Justification::centredLeft);
-    graphics.setColour(displayedMidiActivity > 0.06f ? accent : juce::Colour{0xff393641});
+    graphics.setColour(displayedMidiActivity > 0.06f ? accent : brassTrim);
     graphics.fillEllipse(451.0f, 41.0f, 9.0f, 9.0f);
     graphics.setColour(muted);
     graphics.drawText("AUDIO", 470, 40, 38, 12, juce::Justification::centredLeft);
     const juce::Rectangle<float> meterTrack{510.0f, 42.0f,
                                             static_cast<float>(std::max(80, getWidth() - 770)), 7.0f};
-    graphics.setColour(juce::Colour{0xff393641});
+    graphics.setColour(brassTrim);
     graphics.fillRoundedRectangle(meterTrack, 3.5f);
     auto meterFill = meterTrack;
     meterFill.setWidth(meterFill.getWidth() * std::clamp(displayedAudioPeak, 0.0f, 1.0f));
-    graphics.setColour(displayedAudioPeak > 0.92f ? juce::Colour{0xffff665e} : accent);
+    graphics.setColour(displayedAudioPeak > 0.92f ? juce::Colour{0xffd66c52} : accent);
     graphics.fillRoundedRectangle(meterFill, 3.5f);
 
     if (currentPage != Page::home) {
         graphics.setColour(panel);
         graphics.fillRoundedRectangle(30.0f, 116.0f, static_cast<float>(getWidth() - 60),
                                       static_cast<float>(getHeight() - 144), 12.0f);
+        graphics.setColour(accent.withAlpha(0.3f));
+        graphics.drawRoundedRectangle(30.5f, 116.5f, static_cast<float>(getWidth() - 61),
+                                      static_cast<float>(getHeight() - 145), 11.5f, 1.0f);
         return;
     }
 
-    graphics.setColour(accent.withAlpha(0.14f));
+    graphics.setColour(accent.withAlpha(0.08f));
     graphics.fillEllipse(static_cast<float>(getWidth() - 290), -105.0f, 300.0f, 300.0f);
 
     graphics.setColour(panel);
     graphics.fillRoundedRectangle(30.0f, 120.0f, static_cast<float>(getWidth() - 60), 82.0f, 12.0f);
     graphics.fillRoundedRectangle(30.0f, 212.0f, static_cast<float>(getWidth() - 60), 176.0f, 12.0f);
     graphics.fillRoundedRectangle(30.0f, 398.0f, static_cast<float>(getWidth() - 60), 158.0f, 12.0f);
+    graphics.setColour(accent.withAlpha(0.24f));
+    graphics.drawRoundedRectangle(30.5f, 120.5f, static_cast<float>(getWidth() - 61), 81.0f, 11.5f, 0.8f);
+    graphics.drawRoundedRectangle(30.5f, 212.5f, static_cast<float>(getWidth() - 61), 175.0f, 11.5f, 0.8f);
+    graphics.drawRoundedRectangle(30.5f, 398.5f, static_cast<float>(getWidth() - 61), 157.0f, 11.5f, 0.8f);
 
     graphics.setColour(accent);
     graphics.setFont(juce::FontOptions{10.0f, juce::Font::bold});
@@ -441,7 +473,7 @@ void Pas1AudioProcessorEditor::paint(juce::Graphics& graphics) {
     const auto waveRight = static_cast<float>(std::min(740, getWidth() - 250));
     const auto waveTop = 145.0f;
     const auto waveBottom = 180.0f;
-    graphics.setColour(juce::Colour{0xff393641});
+    graphics.setColour(brassTrim);
     graphics.drawLine(waveLeft, (waveTop + waveBottom) * 0.5f,
                       waveRight, (waveTop + waveBottom) * 0.5f, 1.0f);
     juce::Path wavePath;
@@ -478,7 +510,7 @@ void Pas1AudioProcessorEditor::paint(juce::Graphics& graphics) {
                       static_cast<int>(plot.left), 232,
                       static_cast<int>(plot.right - plot.left), 15,
                       juce::Justification::centredLeft);
-    graphics.setColour(juce::Colour{0xff393641});
+    graphics.setColour(brassTrim);
     for (int line = 1; line <= 3; ++line) {
         const auto y = plot.top + (plot.bottom - plot.top) * static_cast<float>(line) / 4.0f;
         graphics.drawLine(plot.left, y, plot.right, y, 1.0f);
@@ -670,6 +702,7 @@ void Pas1AudioProcessorEditor::resized() {
         ++tabIndex;
     }
     pas1::diagnostics::startupTrace("editor.resized.headerButtons.before");
+    resetDefaultsButton.setBounds(width - 332, 20, 64, 30);
     savePresetButton.setBounds(width - 250, 20, 78, 30);
     engineButton.setBounds(width - 164, 20, 128, 30);
 
@@ -694,10 +727,9 @@ void Pas1AudioProcessorEditor::resized() {
         pas1::diagnostics::startupTrace(after);
     }
     pas1::diagnostics::startupTrace("editor.resized.settingsControls.before");
-    resetDefaultsButton.setBounds(46, 121, 174, 27);
-    storeSnapshotAButton.setBounds(230, 121, 72, 27);
-    storeSnapshotBButton.setBounds(308, 121, 72, 27);
-    compareSnapshotsButton.setBounds(386, 121, 92, 27);
+    storeSnapshotAButton.setBounds(46, 121, 72, 27);
+    storeSnapshotBButton.setBounds(124, 121, 72, 27);
+    compareSnapshotsButton.setBounds(202, 121, 92, 27);
     settingsPage->setBounds(pageBounds.withY(152).withHeight(pageBounds.getHeight() - 36));
 
     pas1::diagnostics::startupTrace("editor.resized.waveform.before");
@@ -775,7 +807,6 @@ void Pas1AudioProcessorEditor::showPage(Page page) {
     presetsPanel->setVisible(page == Page::presets);
     settingsPage->setVisible(page == Page::settings);
     spectrumAnalyzer->setVisible(home);
-    resetDefaultsButton.setVisible(page == Page::settings);
     storeSnapshotAButton.setVisible(page == Page::settings);
     storeSnapshotBButton.setVisible(page == Page::settings);
     compareSnapshotsButton.setVisible(page == Page::settings);

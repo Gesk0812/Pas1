@@ -257,6 +257,155 @@ constexpr ParameterSetting distantSweepSettings[]{
     {"attack", 1.5f}, {"decay", 1.2f}, {"sustain", 0.7f}, {"release", 3.2f},
     {"phaserenabled", 1}, {"phasermix", 0.24f}, {"reverbenabled", 1},
     {"reverbmix", 0.38f}, {"master", 0.44f}};
+constexpr ParameterSetting windUpWaltzSettings[]{
+    {"waveform", 0}, {"osc1level", 0.76f}, {"osc2wave", 1}, {"osc2level", 0.2f},
+    {"fmamount", 0.18f}, {"filtertype", 2}, {"filtercutoff", 5800.0f},
+    {"attack", 0.002f}, {"decay", 0.72f}, {"sustain", 0.08f}, {"release", 0.62f},
+    {"reverbenabled", 1}, {"reverbmix", 0.18f}, {"master", 0.62f}};
+constexpr ParameterSetting tinyCarouselSettings[]{
+    {"waveform", 1}, {"osc1level", 0.72f}, {"unisonvoices", 3}, {"unisondetune", 4.0f},
+    {"osc2wave", 0}, {"osc2level", 0.28f}, {"fmamount", 0.28f},
+    {"filtercutoff", 7200.0f}, {"attack", 0.005f}, {"decay", 1.0f},
+    {"sustain", 0.14f}, {"release", 0.92f}, {"delayenabled", 1},
+    {"delaymix", 0.12f}, {"delaytime", 0.38f}, {"reverbenabled", 1},
+    {"reverbmix", 0.25f}, {"master", 0.6f}};
+constexpr ParameterSetting silverTeethSettings[]{
+    {"waveform", 0}, {"osc1level", 0.76f}, {"osc2wave", 3}, {"osc2level", 0.16f},
+    {"osc3wave", 0}, {"osc3level", 0.1f}, {"fmamount", 0.55f},
+    {"ringamount", 0.1f}, {"filtertype", 2}, {"filtercutoff", 9500.0f},
+    {"attack", 0.001f}, {"decay", 0.95f}, {"sustain", 0.0f}, {"release", 0.8f},
+    {"reverbenabled", 1}, {"reverbmix", 0.2f}, {"master", 0.58f}};
+constexpr ParameterSetting glassLullabySettings[]{
+    {"waveform", 0}, {"osc1level", 0.72f}, {"osc2wave", 1}, {"osc2level", 0.28f},
+    {"filtertype", 2}, {"filtercutoff", 5800.0f}, {"attack", 0.04f},
+    {"decay", 1.2f}, {"sustain", 0.2f}, {"release", 1.5f},
+    {"reverbenabled", 1}, {"reverbmix", 0.34f}, {"master", 0.56f}};
+constexpr ParameterSetting clockworkTinesSettings[]{
+    {"waveform", 0}, {"osc1level", 0.72f}, {"osc2wave", 1}, {"osc2level", 0.18f},
+    {"osc3wave", 3}, {"osc3level", 0.14f}, {"pulsewidth", 0.23f},
+    {"fmamount", 0.25f}, {"filtertype", 2}, {"filtercutoff", 7600.0f},
+    {"attack", 0.001f}, {"decay", 0.52f}, {"sustain", 0.04f}, {"release", 0.44f},
+    {"master", 0.64f}};
+constexpr ParameterSetting velvetCarouselSettings[]{
+    {"waveform", 1}, {"osc1level", 0.7f}, {"unisonvoices", 5}, {"unisondetune", 9.0f},
+    {"osc2wave", 2}, {"osc2level", 0.16f}, {"filtercutoff", 4900.0f},
+    {"attack", 0.12f}, {"decay", 0.86f}, {"sustain", 0.3f}, {"release", 1.1f},
+    {"chorusenabled", 1}, {"chorusmix", 0.25f}, {"reverbenabled", 1},
+    {"reverbmix", 0.22f}, {"master", 0.54f}};
+constexpr ParameterSetting winterCrankSettings[]{
+    {"waveform", 0}, {"osc1level", 0.74f}, {"osc2wave", 3}, {"osc2level", 0.12f},
+    {"filtertype", 2}, {"filtercutoff", 6500.0f}, {"lfo1rate", 0.28f},
+    {"lfo1amount", 0.11f}, {"lfo1target", 2}, {"attack", 0.02f},
+    {"decay", 1.1f}, {"sustain", 0.16f}, {"release", 1.3f},
+    {"delayenabled", 1}, {"delaymix", 0.14f}, {"reverbenabled", 1},
+    {"reverbmix", 0.28f}, {"master", 0.55f}};
+constexpr ParameterSetting antiqueCherubSettings[]{
+    {"waveform", 0}, {"osc1level", 0.78f}, {"osc2wave", 0}, {"osc2level", 0.22f},
+    {"osc2detune", 4.0f}, {"fmamount", 0.32f}, {"filtertype", 2},
+    {"filtercutoff", 6200.0f}, {"attack", 0.006f}, {"decay", 0.82f},
+    {"sustain", 0.1f}, {"release", 0.78f}, {"reverbenabled", 1},
+    {"reverbmix", 0.24f}, {"master", 0.6f}};
+constexpr ParameterSetting distantMusicBoxSettings[]{
+    {"waveform", 1}, {"osc1level", 0.72f}, {"osc2wave", 0}, {"osc2level", 0.18f},
+    {"filtertype", 2}, {"filtercutoff", 4200.0f}, {"filterresonance", 0.16f},
+    {"attack", 0.03f}, {"decay", 1.4f}, {"sustain", 0.16f}, {"release", 1.8f},
+    {"delayenabled", 1}, {"delaymix", 0.22f}, {"delaytime", 0.48f},
+    {"delayfeedback", 0.42f}, {"reverbenabled", 1}, {"reverbmix", 0.3f},
+    {"master", 0.5f}};
+constexpr ParameterSetting brassBalletSettings[]{
+    {"waveform", 2}, {"osc1level", 0.66f}, {"osc2wave", 3}, {"osc2level", 0.1f},
+    {"filtercutoff", 3800.0f}, {"filterresonance", 0.24f}, {"attack", 0.018f},
+    {"decay", 0.9f}, {"sustain", 0.28f}, {"release", 1.0f},
+    {"chorusenabled", 1}, {"chorusmix", 0.2f}, {"reverbenabled", 1},
+    {"reverbmix", 0.22f}, {"master", 0.54f}};
+constexpr ParameterSetting ballerinaWaltzSettings[]{
+    {"waveform", 0}, {"osc1level", 0.72f}, {"osc2wave", 1}, {"osc2level", 0.22f},
+    {"osc2detune", 3.0f}, {"filtertype", 2}, {"filtercutoff", 5100.0f},
+    {"lfo1rate", 0.34f}, {"lfo1amount", 0.06f}, {"lfo1target", 1},
+    {"attack", 0.01f}, {"decay", 0.74f}, {"sustain", 0.14f}, {"release", 0.88f},
+    {"reverbenabled", 1}, {"reverbmix", 0.18f}, {"master", 0.58f}};
+constexpr ParameterSetting midnightTrinketSettings[]{
+    {"waveform", 0}, {"osc1level", 0.7f}, {"osc2wave", 3}, {"osc2level", 0.14f},
+    {"fmamount", 0.38f}, {"filtercutoff", 1900.0f}, {"filterresonance", 0.4f},
+    {"attack", 0.008f}, {"decay", 1.2f}, {"sustain", 0.1f}, {"release", 1.1f},
+    {"phaserenabled", 1}, {"phasermix", 0.16f}, {"reverbenabled", 1},
+    {"reverbmix", 0.28f}, {"master", 0.5f}};
+constexpr ParameterSetting porcelainBellsSettings[]{
+    {"waveform", 0}, {"osc1level", 0.74f}, {"osc2wave", 1}, {"osc2level", 0.24f},
+    {"osc3wave", 0}, {"osc3level", 0.12f}, {"fmamount", 0.2f},
+    {"filtertype", 2}, {"filtercutoff", 8400.0f}, {"attack", 0.001f},
+    {"decay", 0.68f}, {"sustain", 0.02f}, {"release", 0.72f},
+    {"reverbenabled", 1}, {"reverbmix", 0.21f}, {"master", 0.6f}};
+constexpr ParameterSetting copperSubSettings[]{
+    {"waveform", 2}, {"osc1level", 0.84f}, {"osc1octave", -1}, {"osc2wave", 0},
+    {"osc2level", 0.12f}, {"sublevel", 0.82f}, {"filtercutoff", 210.0f},
+    {"filterresonance", 0.2f}, {"filterenvamount", 0.34f}, {"attack", 0.003f},
+    {"decay", 0.32f}, {"sustain", 0.78f}, {"release", 0.19f}, {"master", 0.66f}};
+constexpr ParameterSetting feltEpSettings[]{
+    {"waveform", 1}, {"osc1level", 0.78f}, {"osc2wave", 0}, {"osc2level", 0.16f},
+    {"filtercutoff", 3100.0f}, {"filterenvamount", 0.18f}, {"attack", 0.014f},
+    {"decay", 0.8f}, {"sustain", 0.34f}, {"release", 0.72f},
+    {"chorusenabled", 1}, {"chorusmix", 0.12f}, {"master", 0.62f}};
+constexpr ParameterSetting bellFluteSettings[]{
+    {"waveform", 1}, {"osc1level", 0.72f}, {"osc2wave", 0}, {"osc2level", 0.22f},
+    {"osc3wave", 1}, {"osc3level", 0.14f}, {"filtertype", 2},
+    {"filtercutoff", 6100.0f}, {"attack", 0.04f}, {"decay", 1.0f},
+    {"sustain", 0.42f}, {"release", 0.92f}, {"reverbenabled", 1},
+    {"reverbmix", 0.24f}, {"master", 0.58f}};
+constexpr ParameterSetting octaveSparkSettings[]{
+    {"waveform", 3}, {"osc1level", 0.68f}, {"osc1octave", 1}, {"osc2wave", 2},
+    {"osc2level", 0.28f}, {"osc2detune", -5.0f}, {"filtercutoff", 5100.0f},
+    {"filterresonance", 0.32f}, {"attack", 0.004f}, {"decay", 0.28f},
+    {"sustain", 0.66f}, {"release", 0.24f}, {"master", 0.58f}};
+constexpr ParameterSetting sirenRibbonSettings[]{
+    {"waveform", 2}, {"osc1level", 0.72f}, {"unisonvoices", 3}, {"unisondetune", 8.0f},
+    {"osc2wave", 1}, {"osc2level", 0.24f}, {"filtercutoff", 1800.0f},
+    {"filterresonance", 0.44f}, {"lfo1rate", 0.62f}, {"lfo1amount", 0.24f},
+    {"lfo1target", 2}, {"voicemode", 2}, {"glideenabled", 1}, {"glidetime", 0.28f},
+    {"attack", 0.06f}, {"decay", 0.4f}, {"sustain", 0.7f},
+    {"release", 0.42f}, {"master", 0.56f}};
+constexpr ParameterSetting haloPadSettings[]{
+    {"waveform", 1}, {"osc1level", 0.68f}, {"unisonvoices", 7}, {"unisondetune", 31.0f},
+    {"osc2wave", 0}, {"osc2level", 0.2f}, {"filtercutoff", 4800.0f},
+    {"lfo1rate", 0.16f}, {"modroute1source", 0}, {"modroute1destination", 8},
+    {"modroute1amount", 0.24f}, {"modroute1enabled", 1}, {"attack", 1.3f},
+    {"decay", 1.1f}, {"sustain", 0.76f}, {"release", 3.0f},
+    {"chorusenabled", 1}, {"chorusmix", 0.3f}, {"reverbenabled", 1},
+    {"reverbmix", 0.34f}, {"master", 0.48f}};
+constexpr ParameterSetting paperMoonSettings[]{
+    {"waveform", 0}, {"osc1level", 0.72f}, {"osc2wave", 1}, {"osc2level", 0.16f},
+    {"osc2detune", 5.0f}, {"filtercutoff", 2600.0f}, {"lfo1rate", 0.09f},
+    {"lfo1amount", 0.12f}, {"lfo1target", 2}, {"attack", 0.9f},
+    {"decay", 1.4f}, {"sustain", 0.72f}, {"release", 2.7f},
+    {"reverbenabled", 1}, {"reverbmix", 0.32f}, {"master", 0.52f}};
+constexpr ParameterSetting woodenKalimbaSettings[]{
+    {"waveform", 0}, {"osc1level", 0.74f}, {"osc2wave", 1}, {"osc2level", 0.18f},
+    {"osc3wave", 2}, {"osc3level", 0.1f}, {"fmamount", 0.3f},
+    {"filtertype", 2}, {"filtercutoff", 4300.0f}, {"attack", 0.001f},
+    {"decay", 0.54f}, {"sustain", 0.04f}, {"release", 0.32f},
+    {"reverbenabled", 1}, {"reverbmix", 0.12f}, {"master", 0.62f}};
+constexpr ParameterSetting chimePluckSettings[]{
+    {"waveform", 0}, {"osc1level", 0.76f}, {"osc2wave", 1}, {"osc2level", 0.2f},
+    {"fmamount", 0.42f}, {"filtertype", 2}, {"filtercutoff", 7600.0f},
+    {"attack", 0.001f}, {"decay", 0.62f}, {"sustain", 0.06f}, {"release", 0.5f},
+    {"delayenabled", 1}, {"delaymix", 0.16f}, {"delaytime", 0.24f},
+    {"reverbenabled", 1}, {"reverbmix", 0.18f}, {"master", 0.6f}};
+constexpr ParameterSetting radioDustSettings[]{
+    {"waveform", 2}, {"osc1level", 0.32f}, {"noiselevel", 0.54f},
+    {"filtertype", 0}, {"filtercutoff", 2850.0f}, {"filterresonance", 0.36f},
+    {"filterrandom", 0.24f}, {"lfo1rate", 0.12f}, {"modroute1source", 0},
+    {"modroute1destination", 3}, {"modroute1amount", 0.24f}, {"modroute1enabled", 1},
+    {"attack", 0.18f}, {"decay", 1.0f}, {"sustain", 0.38f}, {"release", 1.2f},
+    {"delayenabled", 1}, {"delaymix", 0.14f}, {"reverbenabled", 1},
+    {"reverbmix", 0.26f}, {"master", 0.48f}};
+constexpr ParameterSetting orbitSweepSettings[]{
+    {"waveform", 2}, {"osc1level", 0.54f}, {"unisonvoices", 5}, {"unisondetune", 26.0f},
+    {"osc2wave", 0}, {"osc2level", 0.24f}, {"filtercutoff", 1200.0f},
+    {"lfo1rate", 0.11f}, {"modroute1source", 0}, {"modroute1destination", 3},
+    {"modroute1amount", 0.36f}, {"modroute1enabled", 1}, {"attack", 0.72f},
+    {"decay", 1.3f}, {"sustain", 0.6f}, {"release", 2.6f},
+    {"phaserenabled", 1}, {"phasermix", 0.26f}, {"reverbenabled", 1},
+    {"reverbmix", 0.3f}, {"master", 0.46f}};
 
 const BuiltInPreset builtInPresets[]{
     {"Sub Bass", "Bass", subBassSettings, std::size(subBassSettings)},
@@ -298,7 +447,31 @@ const BuiltInPreset builtInPresets[]{
     {"Laser Bloom", "FX", laserBloomSettings, std::size(laserBloomSettings)},
     {"Dust Storm", "FX", dustStormSettings, std::size(dustStormSettings)},
     {"Orbit Bell", "FX", orbitBellSettings, std::size(orbitBellSettings)},
-    {"Distant Sweep", "FX", distantSweepSettings, std::size(distantSweepSettings)}
+    {"Distant Sweep", "FX", distantSweepSettings, std::size(distantSweepSettings)},
+    {"Wind-Up Waltz", "Music Box", windUpWaltzSettings, std::size(windUpWaltzSettings)},
+    {"Tiny Carousel", "Music Box", tinyCarouselSettings, std::size(tinyCarouselSettings)},
+    {"Silver Teeth", "Music Box", silverTeethSettings, std::size(silverTeethSettings)},
+    {"Glass Lullaby", "Music Box", glassLullabySettings, std::size(glassLullabySettings)},
+    {"Clockwork Tines", "Music Box", clockworkTinesSettings, std::size(clockworkTinesSettings)},
+    {"Velvet Carousel", "Music Box", velvetCarouselSettings, std::size(velvetCarouselSettings)},
+    {"Winter Crank", "Music Box", winterCrankSettings, std::size(winterCrankSettings)},
+    {"Antique Cherub", "Music Box", antiqueCherubSettings, std::size(antiqueCherubSettings)},
+    {"Distant Music Box", "Music Box", distantMusicBoxSettings, std::size(distantMusicBoxSettings)},
+    {"Brass Ballet", "Music Box", brassBalletSettings, std::size(brassBalletSettings)},
+    {"Ballerina Waltz", "Music Box", ballerinaWaltzSettings, std::size(ballerinaWaltzSettings)},
+    {"Midnight Trinket", "Music Box", midnightTrinketSettings, std::size(midnightTrinketSettings)},
+    {"Porcelain Bells", "Music Box", porcelainBellsSettings, std::size(porcelainBellsSettings)},
+    {"Copper Sub", "Bass", copperSubSettings, std::size(copperSubSettings)},
+    {"Felt EP", "Keys", feltEpSettings, std::size(feltEpSettings)},
+    {"Bell Flute", "Keys", bellFluteSettings, std::size(bellFluteSettings)},
+    {"Octave Spark", "Lead", octaveSparkSettings, std::size(octaveSparkSettings)},
+    {"Siren Ribbon", "Lead", sirenRibbonSettings, std::size(sirenRibbonSettings)},
+    {"Halo Pad", "Pad", haloPadSettings, std::size(haloPadSettings)},
+    {"Paper Moon", "Pad", paperMoonSettings, std::size(paperMoonSettings)},
+    {"Wooden Kalimba", "Pluck", woodenKalimbaSettings, std::size(woodenKalimbaSettings)},
+    {"Chime Pluck", "Pluck", chimePluckSettings, std::size(chimePluckSettings)},
+    {"Radio Dust", "FX", radioDustSettings, std::size(radioDustSettings)},
+    {"Orbit Sweep", "FX", orbitSweepSettings, std::size(orbitSweepSettings)}
 };
 
 juce::String getDocumentText(const juce::var& document, const juce::Identifier& key) {

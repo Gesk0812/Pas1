@@ -4,10 +4,10 @@
 #include <cmath>
 
 namespace {
-const juce::Colour analyzerBackground{0xff22242a};
-const juce::Colour analyzerGrid{0xff393641};
-const juce::Colour analyzerAccent{0xffcf7bff};
-const juce::Colour analyzerText{0xffaaa4b1};
+const juce::Colour analyzerBackground{0xff24160f};
+const juce::Colour analyzerGrid{0xff745332};
+const juce::Colour analyzerAccent{0xffd8b36a};
+const juce::Colour analyzerText{0xffbba483};
 }
 
 void SpectrumAnalyzer::update() {

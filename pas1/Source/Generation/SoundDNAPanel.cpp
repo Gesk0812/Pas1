@@ -6,11 +6,11 @@
 #include <utility>
 
 namespace {
-const juce::Colour background{0xff1a1c21};
-const juce::Colour accent{0xffcf7bff};
-const juce::Colour text{0xfff4f0f7};
-const juce::Colour muted{0xffaaa4b1};
-const juce::Colour outline{0xff393641};
+const juce::Colour background{0xff302015};
+const juce::Colour accent{0xffd8b36a};
+const juce::Colour text{0xfff4e8cf};
+const juce::Colour muted{0xffbba483};
+const juce::Colour outline{0xff745332};
 
 const std::array<const char*, pas1::dsp::SoundDNAProfile::featureCount> featureNames{
     "Brightness", "Harmonic Complexity", "Density", "Movement", "Aggression",

@@ -3,11 +3,11 @@
 #include <algorithm>
 
 namespace {
-const juce::Colour background{0xff1a1c21};
-const juce::Colour accent{0xffcf7bff};
-const juce::Colour text{0xfff4f0f7};
-const juce::Colour muted{0xffaaa4b1};
-const juce::Colour outline{0xff393641};
+const juce::Colour background{0xff302015};
+const juce::Colour accent{0xffd8b36a};
+const juce::Colour text{0xfff4e8cf};
+const juce::Colour muted{0xffbba483};
+const juce::Colour outline{0xff745332};
 
 void styleButton(juce::TextButton& button) {
     button.setColour(juce::TextButton::buttonColourId, background);
@@ -94,8 +94,9 @@ void PresetsPanel::paint(juce::Graphics& graphics) {
     graphics.drawRoundedRectangle(getLocalBounds().toFloat().reduced(0.5f), 12.0f, 1.0f);
     graphics.setColour(muted);
     graphics.setFont(juce::FontOptions{10.0f, juce::Font::bold});
-    graphics.drawText("PRESET LIBRARY", 16, 48, 180, 14,
-                      juce::Justification::centredLeft);
+    const auto factoryCount = juce::String(PresetManager::getBuiltInPresetCount());
+    graphics.drawText(juce::String{"PRESET LIBRARY  ·  "} + factoryCount + " FACTORY SOUNDS",
+                      16, 48, 300, 14, juce::Justification::centredLeft);
 }
 
 void PresetsPanel::resized() {
@@ -131,7 +132,7 @@ void PresetsPanel::paintListBoxItem(int row, juce::Graphics& graphics, int width
     if (row < 0 || row >= static_cast<int>(visibleEntries.size()))
         return;
     const auto& entry = visibleEntries[static_cast<std::size_t>(row)];
-    graphics.setColour(selected ? juce::Colour{0xff302a38} : background);
+    graphics.setColour(selected ? juce::Colour{0xff49331f} : background);
     graphics.fillRect(0, 0, width, height);
     graphics.setColour(selected ? accent : outline);
     graphics.fillRect(0, 0, 3, height);

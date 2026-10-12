@@ -5,10 +5,10 @@
 #include <iterator>
 
 namespace {
-const juce::Colour panelBackground{0xff1a1c21};
-const juce::Colour panelAccent{0xffcf7bff};
-const juce::Colour panelText{0xfff4f0f7};
-const juce::Colour panelMuted{0xffaaa4b1};
+const juce::Colour panelBackground{0xff302015};
+const juce::Colour panelAccent{0xffd8b36a};
+const juce::Colour panelText{0xfff4e8cf};
+const juce::Colour panelMuted{0xffbba483};
 
 void setupSlider(juce::Slider& slider) {
     slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
@@ -16,7 +16,7 @@ void setupSlider(juce::Slider& slider) {
     slider.setRange(0.0, 1.0, 0.01);
     slider.setValue(0.5, juce::dontSendNotification);
     slider.setColour(juce::Slider::rotarySliderFillColourId, panelAccent);
-    slider.setColour(juce::Slider::rotarySliderOutlineColourId, juce::Colour{0xff393641});
+    slider.setColour(juce::Slider::rotarySliderOutlineColourId, juce::Colour{0xff745332});
     slider.setColour(juce::Slider::thumbColourId, panelText);
     slider.setColour(juce::Slider::textBoxTextColourId, panelText);
     slider.setColour(juce::Slider::textBoxBackgroundColourId, panelBackground);
@@ -38,7 +38,7 @@ GeneratorPanel::GeneratorPanel(Pas1AudioProcessor& processor) : processor_(proce
         panelMuted);
     recipeText.setColour(juce::TextEditor::backgroundColourId, panelBackground);
     recipeText.setColour(juce::TextEditor::textColourId, panelText);
-    recipeText.setColour(juce::TextEditor::outlineColourId, juce::Colour{0xff393641});
+    recipeText.setColour(juce::TextEditor::outlineColourId, juce::Colour{0xff745332});
     addAndMakeVisible(recipeText);
 
     variationMode.addItemList(
@@ -47,7 +47,7 @@ GeneratorPanel::GeneratorPanel(Pas1AudioProcessor& processor) : processor_(proce
     variationMode.setSelectedId(2, juce::dontSendNotification);
     variationMode.setColour(juce::ComboBox::backgroundColourId, panelBackground);
     variationMode.setColour(juce::ComboBox::textColourId, panelText);
-    variationMode.setColour(juce::ComboBox::outlineColourId, juce::Colour{0xff393641});
+    variationMode.setColour(juce::ComboBox::outlineColourId, juce::Colour{0xff745332});
     addAndMakeVisible(variationMode);
 
     variationAmount.setSliderStyle(juce::Slider::LinearHorizontal);
@@ -64,18 +64,18 @@ GeneratorPanel::GeneratorPanel(Pas1AudioProcessor& processor) : processor_(proce
     seedText.setText("1", juce::dontSendNotification);
     seedText.setColour(juce::TextEditor::backgroundColourId, panelBackground);
     seedText.setColour(juce::TextEditor::textColourId, panelText);
-    seedText.setColour(juce::TextEditor::outlineColourId, juce::Colour{0xff393641});
+    seedText.setColour(juce::TextEditor::outlineColourId, juce::Colour{0xff745332});
     addAndMakeVisible(seedText);
     lockedParameters.setText("master, polyphony", juce::dontSendNotification);
     lockedParameters.setColour(juce::TextEditor::backgroundColourId, panelBackground);
     lockedParameters.setColour(juce::TextEditor::textColourId, panelText);
-    lockedParameters.setColour(juce::TextEditor::outlineColourId, juce::Colour{0xff393641});
+    lockedParameters.setColour(juce::TextEditor::outlineColourId, juce::Colour{0xff745332});
     addAndMakeVisible(lockedParameters);
 
     variationSelector.setTextWhenNothingSelected("Choose a variation");
     variationSelector.setColour(juce::ComboBox::backgroundColourId, panelBackground);
     variationSelector.setColour(juce::ComboBox::textColourId, panelText);
-    variationSelector.setColour(juce::ComboBox::outlineColourId, juce::Colour{0xff393641});
+    variationSelector.setColour(juce::ComboBox::outlineColourId, juce::Colour{0xff745332});
     variationSelector.onChange = [this] {
         if (variationSelector.getSelectedId() > 0)
             selectVariation(variationSelector.getSelectedId() - 1);
