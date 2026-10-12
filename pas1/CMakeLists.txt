@@ -30,7 +30,7 @@ if(PAS1_BUILD_TESTS)
     )
     target_include_directories(PAS1Tests PRIVATE Source)
     if(MSVC)
-        target_compile_options(PAS1Tests PRIVATE /W4 /permissive-)
+        target_compile_options(PAS1Tests PRIVATE /W4 /permissive- /utf-8)
     else()
         target_compile_options(PAS1Tests PRIVATE -Wall -Wextra -Wpedantic)
     endif()
@@ -95,6 +95,11 @@ if(PAS1_BUILD_PLUGIN)
         Source/Generation/SoundDNAPanel.cpp
     )
     target_include_directories(PAS1 PRIVATE Source)
+    if(MSVC)
+        # Russian UI literals are stored as UTF-8; keep MSVC from decoding them
+        # with the Windows machine's legacy active code page.
+        target_compile_options(PAS1 PRIVATE /utf-8)
+    endif()
     target_compile_definitions(PAS1 PUBLIC
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
