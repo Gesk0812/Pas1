@@ -12,11 +12,12 @@ PAS 1 is a native C++17 synthesizer project built with JUCE and CMake. Its curre
 - Attack, Decay, Sustain, Release, waveform, voice count, and master output parameters.
 - Host automation and JUCE AudioProcessorValueTreeState state save/restore.
 - A DSP test executable that does not require JUCE or GoogleTest.
-- GitHub Actions workflow configured for Windows, macOS, and Linux builds; it has not yet been run.
+- GitHub Actions workflow configured for Windows, macOS, and Linux builds.
 - A mipmapped, interpolated wavetable oscillator with sine, triangle, saw, and square tables.
 - Oscillator 1 wavetable scan, octave/fine tuning, phase, and up to seven unison voices.
 - Oscillator 2 wavetable, detuning, phase offset, hard sync, FM, and ring modulation.
 - Oscillator 3 selectable waveform and pulse width; sub oscillator and white-noise source.
+- A six-mode metallic music-box tine engine with adjustable mix, brightness, decay, resonance, inharmonicity, and strike position.
 - A per-voice state-variable filter with low-pass, high-pass, band-pass, and notch modes.
 - Filter drive/saturation, a separate filter ADSR, key tracking, velocity, mod-wheel and random-per-note cutoff modulation.
 - Four per-voice LFOs with sine, triangle, saw, square, sample-and-hold, and smooth-random shapes.
@@ -24,10 +25,10 @@ PAS 1 is a native C++17 synthesizer project built with JUCE and CMake. Its curre
 - A 16-route modulation matrix with LFOs 1–4, both envelopes, velocity, mod wheel, pitch bend, key tracking, and per-note random sources; targets include pitch, oscillator level, wavetable position, filter, FM, pan, effect mix, and Morph X/Y.
 - Per-route source, destination, amount, polarity, and enable controls in a scrollable native UI; routes are host-automatable and saved with the instrument state.
 - Distortion, chorus, phaser, delay, reverb, broad two-band EQ, and a soft output limiter; delay and reverb buffers are allocated during preparation, not in the audio callback.
-- A dedicated preset library with search, category/favorite/recent filters, name/category/recent sorting, 16 built-in sounds, and versioned `.pas1preset` import/export.
+- A dedicated preset library with search, category/favorite/recent filters, name/category/recent sorting, 64 built-in sounds, and versioned `.pas1preset` import/export.
 - User preset Save, Save As, duplicate, rename, delete, and favorite/recent metadata stored separately from the DAW project state.
 - An “ALL PARAMETERS” editor page exposing every automatable parameter.
-- A local Sound Recipe generator with nine character controls, keyword mapping, ten variation modes, deterministic seeds, parameter locks, 4/16-variation sets, before/after preview, undo/redo, keep/revert, and `.pas1recipe` export.
+- A local Sound Recipe generator with nine character controls, keyword mapping, ten variation modes, deterministic seeds, parameter and section locks, 4/16-variation sets, before/after preview, undo/redo, keep/revert, and `.pas1recipe` save/load.
 - A four-corner Morph Matrix with factory and user-captured A/B/C/D sounds, seeded corner randomization, per-parameter locks, bilinear interpolation, logarithmic cutoff/time mapping, and smoothed transitions.
 - Host-automatable Morph X/Y controls that continue changing the sound when the editor is closed; corner states and locks are included in saved plugin and user-preset state.
 - Sound DNA profiles for brightness, harmonic complexity, density, movement, aggression, stereo width, bass weight, space, texture, and envelope character, calculated from actual synth parameters.
@@ -44,7 +45,7 @@ The remaining work is release validation: run the GitHub Actions build, install 
 
 ## Build locally
 
-Install CMake 3.22 or newer, a C++17 compiler, Git, and the platform's JUCE audio/UI build prerequisites. The CMake configure step downloads the pinned JUCE 8.0.8 source.
+Install CMake 3.22 or newer, C and C++17 compilers, Git, and the platform's JUCE audio/UI build prerequisites. The CMake configure step downloads the pinned JUCE 8.0.8 source.
 
 From the repository root:
 
@@ -96,4 +97,4 @@ The DSP tests cover oscillator signal/range and pulse width, wavetable scan, env
 
 ## Roadmap
 
-The implementation follows the supplied stages: core instrument, expanded synth engine, effects, presets, local rule-based sound generator, morph controls, Sound DNA, interface refinement, and release hardening. Implemented work includes the 16-route modulation matrix, tested mono note-priority behavior, and sample-accurate portamento. The preset-library portion includes search, filters, organization, and user-preset management. Dependency-free DSP/generator/DNA/modulation/portamento/note-priority tests pass. Remaining interface work, release hardening, GitHub Actions verification, and VST3/DAW compatibility are not yet complete or verified.
+The implementation follows the supplied stages: core instrument, expanded synth engine, effects, presets, local rule-based sound generator, morph controls, Sound DNA, interface refinement, and release hardening. Implemented work includes the 16-route modulation matrix, tested mono note-priority behavior, and sample-accurate portamento. The preset-library portion includes search, filters, organization, and user-preset management. Dependency-free DSP/generator/DNA/modulation/portamento/note-priority tests are available. Remaining work is release validation: a fresh GitHub Actions run for the current source, VST3/DAW compatibility, host automation and state-restore checks, and interface testing in a real plugin host.

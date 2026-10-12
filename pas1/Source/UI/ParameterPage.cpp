@@ -4,11 +4,11 @@
 #include <utility>
 
 namespace {
-const juce::Colour pageBackground{0xff1a1c21};
-const juce::Colour rowBackground{0xff22242a};
-const juce::Colour pageAccent{0xffcf7bff};
-const juce::Colour pageText{0xfff4f0f7};
-const juce::Colour pageMuted{0xffaaa4b1};
+const juce::Colour pageBackground{0xff302015};
+const juce::Colour rowBackground{0xff3a271b};
+const juce::Colour pageAccent{0xffd8b36a};
+const juce::Colour pageText{0xfff4e8cf};
+const juce::Colour pageMuted{0xffbba483};
 }
 
 class ParameterPage::Content final : public juce::Component {
@@ -38,7 +38,7 @@ private:
                 combo_.addItemList(choice->choices, 1);
                 combo_.setColour(juce::ComboBox::backgroundColourId, rowBackground);
                 combo_.setColour(juce::ComboBox::textColourId, pageText);
-                combo_.setColour(juce::ComboBox::outlineColourId, pageBackground);
+                combo_.setColour(juce::ComboBox::outlineColourId, juce::Colour{0xff745332});
                 combo_.setColour(juce::ComboBox::arrowColourId, pageAccent);
                 addAndMakeVisible(combo_);
                 comboAttachment_ =
@@ -57,7 +57,7 @@ private:
                 slider_.setColour(juce::Slider::thumbColourId, pageText);
                 slider_.setColour(juce::Slider::textBoxTextColourId, pageText);
                 slider_.setColour(juce::Slider::textBoxBackgroundColourId, rowBackground);
-                slider_.setColour(juce::Slider::textBoxOutlineColourId, pageBackground);
+                slider_.setColour(juce::Slider::textBoxOutlineColourId, juce::Colour{0xff745332});
                 addAndMakeVisible(slider_);
                 sliderAttachment_ =
                     std::make_unique<SliderAttachment>(state, id, slider_);

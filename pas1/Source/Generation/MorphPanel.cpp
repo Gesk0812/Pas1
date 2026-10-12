@@ -3,11 +3,11 @@
 #include <algorithm>
 
 namespace {
-const juce::Colour background{0xff1a1c21};
-const juce::Colour accent{0xffcf7bff};
-const juce::Colour text{0xfff4f0f7};
-const juce::Colour muted{0xffaaa4b1};
-const juce::Colour border{0xff393641};
+const juce::Colour background{0xff302015};
+const juce::Colour accent{0xffd8b36a};
+const juce::Colour text{0xfff4e8cf};
+const juce::Colour muted{0xffbba483};
+const juce::Colour border{0xff745332};
 
 void styleButton(juce::TextButton& button) {
     button.setColour(juce::TextButton::buttonColourId, background);
@@ -28,14 +28,14 @@ juce::Rectangle<float> MorphPad::padArea() const {
 
 void MorphPad::paint(juce::Graphics& graphics) {
     const auto area = padArea();
-    juce::ColourGradient gradient{juce::Colour{0xff342441}, area.getX(), area.getY(),
-                                  juce::Colour{0xff242a37}, area.getRight(), area.getBottom(), false};
+    juce::ColourGradient gradient{juce::Colour{0xff6b4527}, area.getX(), area.getY(),
+                                  juce::Colour{0xff29180f}, area.getRight(), area.getBottom(), false};
     graphics.setGradientFill(gradient);
     graphics.fillRoundedRectangle(area, 10.0f);
     graphics.setColour(border);
     graphics.drawRoundedRectangle(area, 10.0f, 1.0f);
 
-    graphics.setColour(juce::Colour{0x55ffffff});
+    graphics.setColour(juce::Colour{0x55f4e8cf});
     for (int division = 1; division < 4; ++division) {
         const auto x = area.getX() + area.getWidth() * static_cast<float>(division) / 4.0f;
         const auto y = area.getY() + area.getHeight() * static_cast<float>(division) / 4.0f;
@@ -58,7 +58,7 @@ void MorphPad::paint(juce::Graphics& graphics) {
     const auto y = processor_.parameters.getRawParameterValue("morphy")->load();
     const juce::Point<float> position{area.getX() + std::clamp(x, 0.0f, 1.0f) * area.getWidth(),
                                       area.getBottom() - std::clamp(y, 0.0f, 1.0f) * area.getHeight()};
-    graphics.setColour(juce::Colour{0x55cf7bff});
+    graphics.setColour(juce::Colour{0x55d8b36a});
     graphics.fillEllipse(position.x - 17.0f, position.y - 17.0f, 34.0f, 34.0f);
     graphics.setColour(accent);
     graphics.fillEllipse(position.x - 8.0f, position.y - 8.0f, 16.0f, 16.0f);

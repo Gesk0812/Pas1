@@ -15,6 +15,7 @@ if(PAS1_BUILD_TESTS)
     add_executable(PAS1Tests
         Tests/CoreTests.cpp
         Source/DSP/Oscillator.cpp
+        Source/DSP/MetallicTine.cpp
         Source/DSP/AmpEnvelope.cpp
         Source/DSP/LowFrequencyOscillator.cpp
         Source/DSP/StateVariableFilter.cpp
@@ -44,9 +45,11 @@ if(PAS1_BUILD_PLUGIN)
         DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     )
     FetchContent_MakeAvailable(JUCE)
-if(MSVC)
-    add_link_options(/MAP)
-endif()
+
+    if(MSVC)
+        add_link_options(/MAP)
+    endif()
+
     juce_add_plugin(PAS1
         COMPANY_NAME "PAS Audio"
         BUNDLE_ID "audio.pas.pas1"
@@ -70,6 +73,7 @@ endif()
         Source/UI/ParameterPage.cpp
         Source/UI/SpectrumAnalyzer.cpp
         Source/DSP/Oscillator.cpp
+        Source/DSP/MetallicTine.cpp
         Source/DSP/AmpEnvelope.cpp
         Source/DSP/LowFrequencyOscillator.cpp
         Source/DSP/StateVariableFilter.cpp

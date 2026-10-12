@@ -11,6 +11,8 @@
 #include "UI/ParameterPage.h"
 #include "UI/SpectrumAnalyzer.h"
 
+#include <array>
+
 class Pas1AudioProcessorEditor final : public juce::AudioProcessorEditor, private juce::Timer {
 public:
     explicit Pas1AudioProcessorEditor(Pas1AudioProcessor&);
@@ -18,6 +20,9 @@ public:
 
     void paint(juce::Graphics&) override;
     void resized() override;
+    void mouseDown(const juce::MouseEvent&) override;
+    void mouseDrag(const juce::MouseEvent&) override;
+    void mouseUp(const juce::MouseEvent&) override;
 
 private:
     enum class Page {
@@ -34,12 +39,16 @@ private:
         allParameters
     };
 
+    enum class EnvelopeHandle { none, attack, decaySustain, release };
+
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ComboBoxAttachment = juce::AudioProcessorValueTreeState::ComboBoxAttachment;
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
     void setCoreControlsVisible(bool visible);
     void showPage(Page page);
     void timerCallback() override;
+    void updateEnvelopeFromGraph(juce::Point<float> position);
+    void endEnvelopeGesture();
     void savePreset();
     void showPresetError(const juce::String& message);
 
@@ -62,6 +71,10 @@ private:
     juce::TextButton storeSnapshotBButton{"STORE B"};
     juce::TextButton compareSnapshotsButton{"A/B"};
     Page currentPage = Page::home;
+    bool uiReady = false;
+    EnvelopeHandle activeEnvelopeHandle = EnvelopeHandle::none;
+    std::array<juce::RangedAudioParameter*, 2> envelopeGestureParameters{};
+    std::size_t envelopeGestureParameterCount = 0;
     juce::MemoryBlock snapshotA;
     juce::MemoryBlock snapshotB;
     bool showingSnapshotB = false;

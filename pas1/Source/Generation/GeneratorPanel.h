@@ -35,6 +35,7 @@ private:
     void keepCurrent();
     void revert();
     void saveRecipe();
+    void loadRecipe();
     void showMessage(const juce::String& message);
     std::vector<std::string> getLockedParameters() const;
     pas1::generation::RecipeControls getRecipeControls() const;
@@ -48,6 +49,9 @@ private:
     juce::TextEditor seedText;
     juce::TextEditor lockedParameters;
     juce::ComboBox variationSelector;
+    std::array<juce::TextButton, 4> sectionLockButtons{
+        juce::TextButton{"OSC"}, juce::TextButton{"FILTER"}, juce::TextButton{"MOD"},
+        juce::TextButton{"FX"}};
     juce::Label amountLabel, modeLabel, seedLabel, lockedLabel, variationLabel;
     std::array<Slider, 9> controls{};
     std::array<juce::Label, 9> controlLabels{};
@@ -65,11 +69,13 @@ private:
     juce::TextButton revertButton{"REVERT"};
     juce::TextButton applyButton{"APPLY"};
     juce::TextButton saveRecipeButton{"SAVE RECIPE"};
+    juce::TextButton loadRecipeButton{"LOAD RECIPE"};
     juce::Label statusLabel;
     std::unique_ptr<juce::FileChooser> fileChooser;
     juce::ValueTree originalState;
     juce::ValueTree afterState;
     std::vector<juce::ValueTree> variations;
+    std::vector<std::uint32_t> variationSeeds;
     std::vector<juce::ValueTree> undoStates;
     std::vector<juce::ValueTree> redoStates;
     bool previewTransaction = false;

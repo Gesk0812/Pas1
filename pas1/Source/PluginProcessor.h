@@ -43,6 +43,7 @@ public:
     void captureMorphCorner(int corner);
     void captureFactoryMorphCorners();
     void randomizeMorphCorners(std::uint32_t seed);
+    void resetMorphConfiguration();
     void setMorphParameterLocked(int parameter, bool locked);
     bool isMorphParameterLocked(int parameter) const;
     bool isMorphConfigured() const noexcept;

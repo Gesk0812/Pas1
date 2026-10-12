@@ -7,6 +7,7 @@
 #include "DSP/SoundDNA.h"
 #include "DSP/LowFrequencyOscillator.h"
 #include "DSP/Oscillator.h"
+#include "DSP/MetallicTine.h"
 #include "DSP/StateVariableFilter.h"
 #include "DSP/WavetableOscillator.h"
 #include "Generation/SoundGenerator.h"
@@ -58,6 +59,32 @@ void testOscillator() {
     pulseMean /= 48000.0;
     expect(std::abs(pulseMean + 0.5) < 0.08,
            "pulse width must change the square-wave duty cycle");
+}
+
+void testMetallicTine() {
+    constexpr float sampleRate = 48000.0f;
+    pas1::dsp::MetallicTine tine;
+    tine.trigger(440.0f, sampleRate, 0.8f, 1.7f, 0.6f, 0.75f, 0.65f);
+
+    double earlyEnergy = 0.0;
+    double lateEnergy = 0.0;
+    for (int index = 0; index < 240000; ++index) {
+        const auto sample = tine.nextSample(440.0f, sampleRate);
+        expect(std::isfinite(sample), "metallic tine output must remain finite");
+        expect(std::abs(sample) <= 1.0f, "metallic tine output must remain bounded");
+        if (index < 2400)
+            earlyEnergy += static_cast<double>(sample) * sample;
+        if (index >= 216000)
+            lateEnergy += static_cast<double>(sample) * sample;
+    }
+    expect(earlyEnergy > 1.0, "metallic tine must produce a non-silent struck tone");
+    expect(lateEnergy < earlyEnergy * 0.2,
+           "metallic tine partials must decay instead of sustaining indefinitely");
+
+    tine.trigger(std::numeric_limits<float>::quiet_NaN(), sampleRate, 0.8f, 1.7f,
+                 0.6f, 0.75f, 0.65f);
+    expect(tine.nextSample(440.0f, sampleRate) == 0.0f,
+           "invalid trigger frequency must leave the tine silent");
 }
 
 void testEnvelope() {
@@ -422,6 +449,14 @@ void testSoundGenerator() {
         {"lfo1amount", 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0, false},
         {"chorusmix", 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0, false},
         {"master", 0.5f, 0.5f, 0.0f, 1.0f, 1.0f, 0, false}};
+    const std::vector<ParameterValue> musicBoxBase{
+        {"musicboxmix", 0.2f, 0.0f, 0.0f, 1.0f, 1.0f, 0, false},
+        {"musicboxbrightness", 0.3f, 0.0f, 0.0f, 1.0f, 1.0f, 0, false},
+        {"musicboxdecay", 0.25f, 0.0f, 0.08f, 8.0f, 1.0f, 0, false},
+        {"musicboxresonance", 0.35f, 0.0f, 0.0f, 1.0f, 1.0f, 0, false},
+        {"musicboxinharmonicity", 0.4f, 0.0f, 0.0f, 1.0f, 1.0f, 0, false},
+        {"musicboxstrike", 0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 0, false},
+        {"master", 0.6f, 0.6f, 0.0f, 1.0f, 1.0f, 0, false}};
 
     pas1::generation::RecipeControls controls;
     controls.brightness = 0.5f;
@@ -453,6 +488,40 @@ void testSoundGenerator() {
     const auto unknownRecipe = pas1::generation::SoundGenerator::createRecipe(
         base, "xyzzy florp quux", controls);
     expect(unknownRecipe.size() == base.size(), "unknown recipe words must be safe");
+
+    const auto musicBoxRecipe = pas1::generation::SoundGenerator::createRecipe(
+        musicBoxBase, "bright music box with metallic tines", controls);
+    const auto findMusicBoxValue = [&findValue](const auto& values, const std::string& id) {
+        return findValue(values, id);
+    };
+    expect(findMusicBoxValue(musicBoxRecipe, "musicboxmix")->normalizedValue > 0.8f,
+           "music-box recipe should enable its dedicated tine engine");
+    expect(findMusicBoxValue(musicBoxRecipe, "musicboxinharmonicity")->normalizedValue
+               > findMusicBoxValue(musicBoxBase, "musicboxinharmonicity")->normalizedValue,
+           "music-box recipe should raise the inharmonic tine character");
+    const std::vector<std::string> lockedTine{"musicboxmix"};
+    const auto lockedMusicBoxRecipe = pas1::generation::SoundGenerator::createRecipe(
+        musicBoxBase, "music box", controls, lockedTine);
+    expect(findMusicBoxValue(lockedMusicBoxRecipe, "musicboxmix")->normalizedValue
+               == findMusicBoxValue(musicBoxBase, "musicboxmix")->normalizedValue,
+           "recipe generation must respect locked parameters");
+    const auto lockedTineVariation = pas1::generation::SoundGenerator::createVariation(
+        musicBoxBase, pas1::generation::VariationMode::seeded, 0.85f, 24680u, lockedTine);
+    expect(findMusicBoxValue(lockedTineVariation, "musicboxmix")->normalizedValue
+               == findMusicBoxValue(musicBoxBase, "musicboxmix")->normalizedValue,
+           "variation generation must respect locked music-box controls");
+    expect(pas1::generation::SoundGenerator::belongsToSection(
+               "musicboxdecay", pas1::generation::VariationSection::oscillators),
+           "music-box tine controls must belong to the oscillator lock section");
+    expect(pas1::generation::SoundGenerator::belongsToSection(
+               "filtercutoff", pas1::generation::VariationSection::filterAndEnvelope),
+           "filter controls must belong to the filter lock section");
+    expect(pas1::generation::SoundGenerator::belongsToSection(
+               "lfo2rate", pas1::generation::VariationSection::modulation),
+           "LFO controls must belong to the modulation lock section");
+    expect(pas1::generation::SoundGenerator::belongsToSection(
+               "reverbmix", pas1::generation::VariationSection::effects),
+           "reverb controls must belong to the effects lock section");
 
     const std::vector<std::string> locks{"filtercutoff", "master"};
     const auto first = pas1::generation::SoundGenerator::createVariation(
@@ -511,6 +580,7 @@ void testSampleRateAndBlockStress() {
 
 int main() {
     testOscillator();
+    testMetallicTine();
     testEnvelope();
     testWavetableOscillator();
     testFilter();

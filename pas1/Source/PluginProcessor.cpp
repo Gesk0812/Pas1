@@ -2,6 +2,7 @@
 
 #include "PluginEditor.h"
 #include "DSP/LowFrequencyOscillator.h"
+#include "DSP/MetallicTine.h"
 #include "DSP/ModulationMatrix.h"
 #include "DSP/NotePriorityStack.h"
 #include "DSP/Portamento.h"
@@ -71,6 +72,12 @@ struct EngineParameterPointers {
     std::atomic<float>* pulseWidth = nullptr;
     std::atomic<float>* subLevel = nullptr;
     std::atomic<float>* noiseLevel = nullptr;
+    std::atomic<float>* musicBoxMix = nullptr;
+    std::atomic<float>* musicBoxBrightness = nullptr;
+    std::atomic<float>* musicBoxDecay = nullptr;
+    std::atomic<float>* musicBoxResonance = nullptr;
+    std::atomic<float>* musicBoxInharmonicity = nullptr;
+    std::atomic<float>* musicBoxStrike = nullptr;
     std::atomic<float>* filterType = nullptr;
     std::atomic<float>* filterCutoff = nullptr;
     std::atomic<float>* filterResonance = nullptr;
@@ -176,6 +183,13 @@ public:
         if (noiseState_ == 0)
             noiseState_ = 0x6d2b79f5u;
         randomPerNote_ = nextNoise();
+        musicBoxTine_.trigger(
+            targetFrequency, static_cast<float>(currentSampleRate_),
+            engineParameters_.musicBoxBrightness->load(),
+            engineParameters_.musicBoxDecay->load(),
+            engineParameters_.musicBoxResonance->load(),
+            engineParameters_.musicBoxInharmonicity->load(),
+            engineParameters_.musicBoxStrike->load());
         updateEnvelopeParameters();
         if (!legatoTransition)
             envelope_.noteOn();
@@ -247,6 +261,7 @@ public:
         const auto pulseWidth = engineParameters_.pulseWidth->load();
         const auto subLevel = engineParameters_.subLevel->load();
         const auto noiseLevel = engineParameters_.noiseLevel->load();
+        const auto musicBoxMix = std::clamp(engineParameters_.musicBoxMix->load(), 0.0f, 1.0f);
         const auto detuneRatio = std::pow(2.0f, engineParameters_.oscillator2Detune->load() / 1200.0f);
         const auto hardSync = engineParameters_.oscillator2HardSync->load() >= 0.5f;
         const auto fmAmount = engineParameters_.oscillator2FmAmount->load();
@@ -430,6 +445,11 @@ public:
                                   + std::clamp(noiseLevel, 0.0f, 1.0f);
             if (levelSum > 0.0f)
                 signal /= levelSum;
+            if (musicBoxMix > 0.0f) {
+                const auto tineSample = musicBoxTine_.nextSample(
+                    frequency, static_cast<float>(sampleRate));
+                signal = signal * (1.0f - musicBoxMix) + tineSample * musicBoxMix;
+            }
             if (filterDrive > 0.0f) {
                 const auto drive = 1.0f + std::clamp(filterDrive, 0.0f, 1.0f) * 9.0f;
                 signal = std::tanh(signal * drive) / std::tanh(drive);
@@ -510,6 +530,7 @@ private:
     pas1::dsp::WavetableOscillator oscillator2_;
     pas1::dsp::Oscillator oscillator3_;
     pas1::dsp::Oscillator subOscillator_;
+    pas1::dsp::MetallicTine musicBoxTine_;
     pas1::dsp::AmpEnvelope envelope_;
     pas1::dsp::AmpEnvelope filterEnvelope_;
     pas1::dsp::StateVariableFilter filter_;
@@ -848,6 +869,24 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"noiselevel", 1}, "Noise Level",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
+    layout.add(std::make_unique<Parameter>(
+        juce::ParameterID{"musicboxmix", 1}, "Music Box Tine Mix",
+        juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
+    layout.add(std::make_unique<Parameter>(
+        juce::ParameterID{"musicboxbrightness", 1}, "Music Box Brightness",
+        juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.72f));
+    layout.add(std::make_unique<Parameter>(
+        juce::ParameterID{"musicboxdecay", 1}, "Music Box Decay",
+        juce::NormalisableRange<float>{0.08f, 8.0f, 0.001f, 0.4f}, 1.4f, " s"));
+    layout.add(std::make_unique<Parameter>(
+        juce::ParameterID{"musicboxresonance", 1}, "Music Box Resonance",
+        juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.62f));
+    layout.add(std::make_unique<Parameter>(
+        juce::ParameterID{"musicboxinharmonicity", 1}, "Music Box Inharmonicity",
+        juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.72f));
+    layout.add(std::make_unique<Parameter>(
+        juce::ParameterID{"musicboxstrike", 1}, "Music Box Strike",
+        juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.58f));
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID{"filtertype", 1}, "Filter Type",
         juce::StringArray{"Low-pass", "High-pass", "Band-pass", "Notch"}, 0));
@@ -1075,6 +1114,13 @@ Pas1AudioProcessor::Pas1AudioProcessor()
     engineParameters.pulseWidth = parameters.getRawParameterValue("pulsewidth");
     engineParameters.subLevel = parameters.getRawParameterValue("sublevel");
     engineParameters.noiseLevel = parameters.getRawParameterValue("noiselevel");
+    engineParameters.musicBoxMix = parameters.getRawParameterValue("musicboxmix");
+    engineParameters.musicBoxBrightness = parameters.getRawParameterValue("musicboxbrightness");
+    engineParameters.musicBoxDecay = parameters.getRawParameterValue("musicboxdecay");
+    engineParameters.musicBoxResonance = parameters.getRawParameterValue("musicboxresonance");
+    engineParameters.musicBoxInharmonicity =
+        parameters.getRawParameterValue("musicboxinharmonicity");
+    engineParameters.musicBoxStrike = parameters.getRawParameterValue("musicboxstrike");
     engineParameters.filterType = parameters.getRawParameterValue("filtertype");
     engineParameters.filterCutoff = &morphValues[static_cast<std::size_t>(pas1::dsp::MorphParameter::filterCutoff)];
     engineParameters.filterResonance = &morphValues[static_cast<std::size_t>(pas1::dsp::MorphParameter::filterResonance)];
@@ -1346,16 +1392,34 @@ juce::AudioProcessorEditor* Pas1AudioProcessor::createEditor() {
 void Pas1AudioProcessor::getStateInformation(juce::MemoryBlock& destinationData) {
     auto state = parameters.copyState();
     writeMorphState(state);
-    state.setProperty("stateVersion", 6, nullptr);
+    state.setProperty("stateVersion", 7, nullptr);
     if (const auto xml = state.createXml())
         copyXmlToBinary(*xml, destinationData);
 }
 
 void Pas1AudioProcessor::setStateInformation(const void* data, int sizeInBytes) {
     if (const auto xml = getXmlFromBinary(data, sizeInBytes)) {
-        if (xml->hasTagName(parameters.state.getType()))
-        {
-            parameters.replaceState(juce::ValueTree::fromXml(*xml));
+        if (xml->hasTagName(parameters.state.getType())) {
+            auto restoredState = juce::ValueTree::fromXml(*xml);
+            constexpr std::array<const char*, 6> newParameterIds{
+                "musicboxmix", "musicboxbrightness", "musicboxdecay",
+                "musicboxresonance", "musicboxinharmonicity", "musicboxstrike"};
+            for (const auto* parameterId : newParameterIds) {
+                const juce::String id{parameterId};
+                if (restoredState.getChildWithProperty("id", id).isValid())
+                    continue;
+                auto* parameter = parameters.getParameter(id);
+                const auto currentParameterState =
+                    parameters.state.getChildWithProperty("id", id);
+                if (parameter == nullptr || !currentParameterState.isValid())
+                    continue;
+                auto migratedParameterState = currentParameterState.createCopy();
+                migratedParameterState.setProperty(
+                    "value", parameter->getDefaultValue(), nullptr);
+                restoredState.addChild(migratedParameterState, -1, nullptr);
+            }
+            restoredState.setProperty("stateVersion", 7, nullptr);
+            parameters.replaceState(restoredState);
             readMorphState(parameters.state);
         }
     }
@@ -1414,6 +1478,15 @@ void Pas1AudioProcessor::randomizeMorphCorners(std::uint32_t seed) {
         captureFactoryMorphCorners();
     morphMatrix.randomizeCorners(seed);
     writeMorphState(parameters.state);
+}
+
+void Pas1AudioProcessor::resetMorphConfiguration() {
+    for (int index = parameters.state.getNumProperties() - 1; index >= 0; --index) {
+        const auto property = parameters.state.getPropertyName(index);
+        if (property.toString().startsWith("morph"))
+            parameters.state.removeProperty(property, nullptr);
+    }
+    readMorphState(parameters.state);
 }
 
 void Pas1AudioProcessor::setMorphParameterLocked(int parameter, bool locked) {

@@ -69,6 +69,10 @@ bool isVariationTarget(std::string_view id) {
            || id == "osc1fine" || id == "wavetablescan" || id == "unisonvoices"
            || id == "unisondetune" || id == "osc2wave" || id == "osc2level"
            || id == "osc2detune" || id == "fmamount" || id == "ringamount"
+           || id == "musicboxmix" || id == "musicboxbrightness"
+           || id == "musicboxdecay" || id == "musicboxresonance"
+           || id == "musicboxinharmonicity"
+           || id == "musicboxstrike"
            || id == "osc3wave" || id == "osc3level" || id == "pulsewidth"
            || id == "sublevel" || id == "noiselevel" || id == "filtertype"
            || id == "filtercutoff" || id == "filterresonance" || id == "filterdrive"
@@ -83,6 +87,10 @@ bool isVariationTarget(std::string_view id) {
 bool isTextureTarget(std::string_view id) {
     return id == "wavetablescan" || id == "noiselevel" || id == "osc2wave"
            || id == "fmamount" || id == "ringamount" || id == "filtertype"
+           || id == "musicboxmix" || id == "musicboxbrightness"
+           || id == "musicboxdecay" || id == "musicboxresonance"
+           || id == "musicboxinharmonicity"
+           || id == "musicboxstrike"
            || id == "filterresonance" || id == "filterdrive" || id == "pulsewidth"
            || startsWith(id, "chorus") || startsWith(id, "phaser")
            || startsWith(id, "delay") || startsWith(id, "reverb") || startsWith(id, "eq");
@@ -119,9 +127,31 @@ float categoryCenter(std::string_view id, const std::string& genre, std::uint32_
 }
 } // namespace
 
+bool SoundGenerator::belongsToSection(std::string_view id,
+                                      VariationSection section) noexcept {
+    switch (section) {
+        case VariationSection::oscillators:
+            return id == "waveform" || startsWith(id, "osc") || id == "wavetablescan"
+                   || id == "unisonvoices" || id == "unisondetune" || id == "pulsewidth"
+                   || id == "sublevel" || id == "noiselevel" || startsWith(id, "musicbox");
+        case VariationSection::filterAndEnvelope:
+            return startsWith(id, "filter") || id == "attack" || id == "decay"
+                   || id == "sustain" || id == "release";
+        case VariationSection::modulation:
+            return startsWith(id, "lfo") || startsWith(id, "modroute")
+                   || id == "morphx" || id == "morphy";
+        case VariationSection::effects:
+            return startsWith(id, "distortion") || startsWith(id, "chorus")
+                   || startsWith(id, "phaser") || startsWith(id, "delay")
+                   || startsWith(id, "reverb") || startsWith(id, "eq")
+                   || id == "stereowidth";
+    }
+    return false;
+}
+
 std::vector<ParameterValue> SoundGenerator::createRecipe(
     const std::vector<ParameterValue>& base, const std::string& description,
-    const RecipeControls& controls) {
+    const RecipeControls& controls, const std::vector<std::string>& lockedParameters) {
     auto result = base;
     const auto text = lowerCase(description);
     auto character = unit(controls.character);
@@ -171,6 +201,15 @@ std::vector<ParameterValue> SoundGenerator::createRecipe(
     }
     if (contains(text, "metallic") || contains(text, "metal"))
         setRaw(result, "fmamount", 0.24f + complexity * 0.48f);
+    if (contains(text, "music box") || contains(text, "musicbox")
+        || contains(text, "шкатул")) {
+        setRaw(result, "musicboxmix", 0.9f);
+        setRaw(result, "musicboxbrightness", 0.78f);
+        setRaw(result, "musicboxdecay", 1.8f);
+        setRaw(result, "musicboxresonance", 0.76f);
+        setRaw(result, "musicboxinharmonicity", 0.82f);
+        setRaw(result, "musicboxstrike", 0.62f);
+    }
 
     setRaw(result, "filtercutoff", blend(260.0f, 11000.0f, brightness));
     setRaw(result, "filterresonance", blend(0.12f, 0.62f, aggression));
@@ -202,6 +241,17 @@ std::vector<ParameterValue> SoundGenerator::createRecipe(
     setRaw(result, "delaymix", space * 0.24f);
     setRaw(result, "attack", blend(0.004f, 0.7f, movement) * (1.0f - aggression * 0.8f));
     setRaw(result, "release", blend(0.12f, 2.2f, space));
+
+    for (auto& parameter : result) {
+        if (std::find(lockedParameters.begin(), lockedParameters.end(), parameter.id)
+            == lockedParameters.end())
+            continue;
+        const auto original = std::find_if(base.begin(), base.end(), [&parameter](const auto& item) {
+            return item.id == parameter.id;
+        });
+        if (original != base.end())
+            parameter.normalizedValue = original->normalizedValue;
+    }
     return result;
 }
 
