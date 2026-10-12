@@ -62,6 +62,7 @@ private:
     juce::TextButton storeSnapshotBButton{"STORE B"};
     juce::TextButton compareSnapshotsButton{"A/B"};
     Page currentPage = Page::home;
+    bool uiReady = false;
     juce::MemoryBlock snapshotA;
     juce::MemoryBlock snapshotB;
     bool showingSnapshotB = false;

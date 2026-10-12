@@ -328,13 +328,13 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     glideEnabledAttachment = std::make_unique<ButtonAttachment>(
         state, "glideenabled", glideEnabled);
     glideTimeAttachment = std::make_unique<SliderAttachment>(state, "glidetime", glideTime);
+    uiReady = true;
     pas1::diagnostics::startupTrace("editor.setSize.before");
     setSize(1020, 740);
     pas1::diagnostics::startupTrace("editor.setSize.done");
     pas1::diagnostics::startupTrace("editor.showHome.before");
     showPage(Page::home);
     pas1::diagnostics::startupTrace("editor.showHome.done");
-    
 }
 
 void Pas1AudioProcessorEditor::paint(juce::Graphics& graphics) {
@@ -480,6 +480,10 @@ void Pas1AudioProcessorEditor::timerCallback() {
 
 void Pas1AudioProcessorEditor::resized() {
     pas1::diagnostics::startupTrace("editor.resized.begin");
+    if (!uiReady) {
+        pas1::diagnostics::startupTrace("editor.resized.skipped_not_ready");
+        return;
+    }
     const auto width = getWidth();
     const std::array<std::pair<juce::TextButton*, int>, 10> tabs{{
         {&homeButton, 58}, {&oscillatorButton, 62}, {&filterButton, 68},
