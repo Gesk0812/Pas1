@@ -1,2 +1,3 @@
 - [JUCE UTF-8 UI text](juce-utf8-ui-text.md) — decode non-ASCII literals with `String::fromUTF8`; `/utf-8` alone does not change JUCE's ASCII narrow-string constructor.
 - [Linux plugin builds](juce-linux-build.md) — the current Replit container lacks X11 development headers; use CI for full JUCE GUI/plugin builds unless dependencies change.
+- [GitHub push access](github-push-access.md) — Replit's Git pane can show GitHub as active while the agent-side integration remains unbound and CLI pushes fail.
