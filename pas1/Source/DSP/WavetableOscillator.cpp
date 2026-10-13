@@ -28,6 +28,53 @@ float harmonicSample(int waveform, double phase, int maximumHarmonic) noexcept {
             for (int harmonic = 1; harmonic <= maximumHarmonic; harmonic += 2)
                 sum += std::sin(2.0 * pi * harmonic * phase) / harmonic;
             return static_cast<float>(4.0 * sum / pi);
+        case 4: // Narrow pulse, approximately 25% duty cycle.
+            for (int harmonic = 1; harmonic <= maximumHarmonic; ++harmonic)
+                sum += std::sin(2.0 * pi * harmonic * phase)
+                       * std::sin(pi * harmonic * 0.25) / harmonic;
+            return static_cast<float>(2.0 * sum);
+        case 5: // Reverse saw.
+            for (int harmonic = 1; harmonic <= maximumHarmonic; ++harmonic)
+                sum += std::sin(2.0 * pi * harmonic * phase) / harmonic;
+            return static_cast<float>(2.0 * sum / pi);
+        case 6: // Organ-like additive wave.
+            for (int harmonic = 1; harmonic <= maximumHarmonic; ++harmonic)
+                sum += std::sin(2.0 * pi * harmonic * phase)
+                       / std::pow(static_cast<double>(harmonic), 0.72);
+            return static_cast<float>(sum);
+        case 7: // Hollow, odd-harmonic reed.
+            for (int harmonic = 1; harmonic <= maximumHarmonic; ++harmonic) {
+                if (harmonic % 2 == 0)
+                    continue;
+                const auto weight = harmonic % 4 == 1 ? 1.0 : -0.58;
+                sum += weight * std::sin(2.0 * pi * harmonic * phase) / harmonic;
+            }
+            return static_cast<float>(sum);
+        case 8: // Vowel-like formant emphasis.
+            for (int harmonic = 1; harmonic <= maximumHarmonic; ++harmonic) {
+                const auto distance = static_cast<double>(harmonic) - 4.0;
+                const auto formant = std::exp(-(distance * distance) / 4.5);
+                sum += formant * std::sin(2.0 * pi * harmonic * phase) / harmonic;
+            }
+            return static_cast<float>(sum * 2.3);
+        case 9: // Bell-like inharmonic partial series.
+        case 10: {
+            constexpr std::array<double, 7> bellRatios{1.0, 2.0, 3.01, 4.18, 5.43, 6.7, 8.1};
+            constexpr std::array<double, 7> metalRatios{1.0, 1.41, 2.76, 4.93, 6.6, 8.21, 10.7};
+            constexpr std::array<double, 7> partialWeights{1.0, 0.58, 0.36, 0.25, 0.17, 0.12, 0.08};
+            const auto& ratios = waveform == 9 ? bellRatios : metalRatios;
+            for (std::size_t index = 0; index < ratios.size(); ++index)
+                if (ratios[index] <= maximumHarmonic)
+                    sum += partialWeights[index]
+                           * std::sin(2.0 * pi * ratios[index] * phase);
+            return static_cast<float>(sum);
+        }
+        case 11: // Soft-clipped sine with a controlled upper spectrum.
+            sum = std::sin(2.0 * pi * phase)
+                  + 0.34 * std::sin(6.0 * pi * phase)
+                  + 0.16 * std::sin(10.0 * pi * phase)
+                  + 0.08 * std::sin(14.0 * pi * phase);
+            return static_cast<float>(sum);
         default:
             return 0.0f;
     }
@@ -37,7 +84,7 @@ float harmonicSample(int waveform, double phase, int maximumHarmonic) noexcept {
 const WavetableOscillator::Bank& WavetableOscillator::getBank() {
     static const auto bank = [] {
         auto result = std::make_unique<Bank>();
-        for (int waveform = 0; waveform < 4; ++waveform) {
+        for (int waveform = 0; waveform < waveformCount; ++waveform) {
             for (int level = 0; level < mipLevels; ++level) {
                 const auto maximumHarmonic = 1 << level;
                 auto& table = (*result)[static_cast<std::size_t>(waveform)]
@@ -83,11 +130,15 @@ float WavetableOscillator::nextSample(float frequency, float sampleRate, Wavefor
     while (level + 1 < mipLevels && (1 << (level + 1)) <= maximumHarmonics)
         ++level;
 
-    const auto baseWaveform = static_cast<float>(std::clamp(static_cast<int>(waveform), 0, 3));
-    auto tablePosition = baseWaveform + std::clamp(std::isfinite(scan) ? scan : 0.0f, 0.0f, 1.0f) * 4.0f;
-    tablePosition -= std::floor(tablePosition / 4.0f) * 4.0f;
+    constexpr auto waveCount = static_cast<float>(waveformCount);
+    const auto baseWaveform = static_cast<float>(
+        std::clamp(static_cast<int>(waveform), 0, waveformCount - 1));
+    auto tablePosition = baseWaveform
+                         + std::clamp(std::isfinite(scan) ? scan : 0.0f, 0.0f, 1.0f)
+                               * waveCount;
+    tablePosition -= std::floor(tablePosition / waveCount) * waveCount;
     const auto lowerWaveform = static_cast<int>(tablePosition);
-    const auto upperWaveform = (lowerWaveform + 1) % 4;
+    const auto upperWaveform = (lowerWaveform + 1) % waveformCount;
     const auto waveformFraction = tablePosition - static_cast<float>(lowerWaveform);
     const auto& bank = getBank();
     const auto& lowerTable = bank[static_cast<std::size_t>(lowerWaveform)]

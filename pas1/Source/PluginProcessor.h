@@ -4,6 +4,7 @@
 #include <juce_dsp/juce_dsp.h>
 
 #include "DSP/AmpEnvelope.h"
+#include "DSP/AncientInstrument.h"
 #include "DSP/EffectsChain.h"
 #include "DSP/ModulationMatrix.h"
 #include "DSP/MorphMatrix.h"
@@ -43,6 +44,7 @@ public:
     void captureMorphCorner(int corner);
     void captureFactoryMorphCorners();
     void randomizeMorphCorners(std::uint32_t seed);
+    void resetMorphConfiguration();
     void setMorphParameterLocked(int parameter, bool locked);
     bool isMorphParameterLocked(int parameter) const;
     bool isMorphConfigured() const noexcept;

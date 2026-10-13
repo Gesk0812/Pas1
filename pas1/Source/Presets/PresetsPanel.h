@@ -3,6 +3,7 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 
 #include "PluginProcessor.h"
+#include "UI/Utf8Text.h"
 
 #include <memory>
 #include <vector>
@@ -50,15 +51,15 @@ private:
     juce::ComboBox sortOrder;
     juce::ListBox presetList;
     juce::TextEditor status;
-    juce::TextButton loadButton{"LOAD"};
-    juce::TextButton favoriteButton{"FAVORITE"};
-    juce::TextButton saveButton{"SAVE"};
-    juce::TextButton saveAsButton{"SAVE AS"};
-    juce::TextButton duplicateButton{"DUPLICATE"};
-    juce::TextButton renameButton{"RENAME"};
-    juce::TextButton deleteButton{"DELETE"};
-    juce::TextButton importButton{"IMPORT"};
-    juce::TextButton exportButton{"EXPORT"};
+    juce::TextButton loadButton{pas1::ui::utf8String("ЗАГРУЗИТЬ")};
+    juce::TextButton favoriteButton{pas1::ui::utf8String("ИЗБРАННОЕ")};
+    juce::TextButton saveButton{pas1::ui::utf8String("СОХРАНИТЬ")};
+    juce::TextButton saveAsButton{pas1::ui::utf8String("СОХРАНИТЬ КАК")};
+    juce::TextButton duplicateButton{pas1::ui::utf8String("ДУБЛИРОВАТЬ")};
+    juce::TextButton renameButton{pas1::ui::utf8String("ПЕРЕИМЕНОВАТЬ")};
+    juce::TextButton deleteButton{pas1::ui::utf8String("УДАЛИТЬ")};
+    juce::TextButton importButton{pas1::ui::utf8String("ИМПОРТ")};
+    juce::TextButton exportButton{pas1::ui::utf8String("ЭКСПОРТ")};
     std::unique_ptr<juce::FileChooser> fileChooser;
     std::vector<Entry> allEntries;
     std::vector<Entry> visibleEntries;

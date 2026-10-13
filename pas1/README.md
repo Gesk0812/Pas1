@@ -12,11 +12,13 @@ PAS 1 is a native C++17 synthesizer project built with JUCE and CMake. Its curre
 - Attack, Decay, Sustain, Release, waveform, voice count, and master output parameters.
 - Host automation and JUCE AudioProcessorValueTreeState state save/restore.
 - A DSP test executable that does not require JUCE or GoogleTest.
-- GitHub Actions workflow configured for Windows, macOS, and Linux builds; it has not yet been run.
+- GitHub Actions workflow configured for Windows, macOS, and Linux builds.
 - A mipmapped, interpolated wavetable oscillator with sine, triangle, saw, and square tables.
 - Oscillator 1 wavetable scan, octave/fine tuning, phase, and up to seven unison voices.
 - Oscillator 2 wavetable, detuning, phase offset, hard sync, FM, and ring modulation.
 - Oscillator 3 selectable waveform and pulse width; sub oscillator and white-noise source.
+- A six-mode metallic music-box tine engine with adjustable mix, brightness, decay, resonance, inharmonicity, and strike position.
+- Four additional algorithmic ancient-inspired voices: double-pipe aulos, plucked lyre, modal bronze gong, and irregular found-metal resonances, with mix, brightness, decay, air/strike, and pipe-detune controls.
 - A per-voice state-variable filter with low-pass, high-pass, band-pass, and notch modes.
 - Filter drive/saturation, a separate filter ADSR, key tracking, velocity, mod-wheel and random-per-note cutoff modulation.
 - Four per-voice LFOs with sine, triangle, saw, square, sample-and-hold, and smooth-random shapes.
@@ -24,17 +26,17 @@ PAS 1 is a native C++17 synthesizer project built with JUCE and CMake. Its curre
 - A 16-route modulation matrix with LFOs 1–4, both envelopes, velocity, mod wheel, pitch bend, key tracking, and per-note random sources; targets include pitch, oscillator level, wavetable position, filter, FM, pan, effect mix, and Morph X/Y.
 - Per-route source, destination, amount, polarity, and enable controls in a scrollable native UI; routes are host-automatable and saved with the instrument state.
 - Distortion, chorus, phaser, delay, reverb, broad two-band EQ, and a soft output limiter; delay and reverb buffers are allocated during preparation, not in the audio callback.
-- A dedicated preset library with search, category/favorite/recent filters, name/category/recent sorting, 16 built-in sounds, and versioned `.pas1preset` import/export.
+- A dedicated preset library with search, category/favorite/recent filters, name/category/recent sorting, 70 built-in sounds, and versioned `.pas1preset` import/export.
 - User preset Save, Save As, duplicate, rename, delete, and favorite/recent metadata stored separately from the DAW project state.
 - An “ALL PARAMETERS” editor page exposing every automatable parameter.
-- A local Sound Recipe generator with nine character controls, keyword mapping, ten variation modes, deterministic seeds, parameter locks, 4/16-variation sets, before/after preview, undo/redo, keep/revert, and `.pas1recipe` export.
+- A local Sound Recipe generator with nine character controls, keyword mapping, ten variation modes, deterministic seeds, parameter and section locks, 4/16-variation sets, before/after preview, undo/redo, keep/revert, and `.pas1recipe` save/load.
 - A four-corner Morph Matrix with factory and user-captured A/B/C/D sounds, seeded corner randomization, per-parameter locks, bilinear interpolation, logarithmic cutoff/time mapping, and smoothed transitions.
 - Host-automatable Morph X/Y controls that continue changing the sound when the editor is closed; corner states and locks are included in saved plugin and user-preset state.
 - Sound DNA profiles for brightness, harmonic complexity, density, movement, aggression, stereo width, bass weight, space, texture, and envelope character, calculated from actual synth parameters.
 - DNA similarity ranking for the 16 built-in presets, preset comparison, profile blending, sound-space exploration, and generation from a blended or explored profile.
 - A Sound DNA page alongside the core, Generator, Morph, and All Parameters views.
 - Live MIDI activity and post-limiter output meters, with tooltips on the main controls.
-- Dedicated Oscillators, Filters, Modulation, Morph, Generator, Sound DNA, Effects, Presets, and Settings tabs.
+- Dedicated Oscillators, Ancient Voices, Filters, Modulation, Morph, Generator, Sound DNA, Effects, Presets, and Settings tabs; the Ancient Voices page uses a separate rose/pink palette.
 - A live, logarithmic output spectrum analyzer on the Home page, driven by a fixed-size atomic audio capture ring and computed on the UI thread.
 - Settings-page factory reset with confirmation and full-state A/B snapshots for quick sound comparison.
 - UI keyboard notes reach the synth through a fixed-capacity SPSC queue; the audio callback avoids JUCE's locking Synthesiser and MidiKeyboardState processing paths.
@@ -44,7 +46,7 @@ The remaining work is release validation: run the GitHub Actions build, install 
 
 ## Build locally
 
-Install CMake 3.22 or newer, a C++17 compiler, Git, and the platform's JUCE audio/UI build prerequisites. The CMake configure step downloads the pinned JUCE 8.0.8 source.
+Install CMake 3.22 or newer, C and C++17 compilers, Git, and the platform's JUCE audio/UI build prerequisites. The CMake configure step downloads the pinned JUCE 8.0.8 source.
 
 From the repository root:
 
@@ -87,6 +89,12 @@ GitHub Actions builds and stores artifacts; it does not publish them as a GitHub
 
 The DSP tests cover oscillator signal/range and pulse width, wavetable scan, envelope stages, deterministic LFO output, filter stability/response, delay output, limiter behavior, stereo width, seeded recipe variations, morph interpolation, smoothing, locking, deterministic randomization, and Sound DNA profile analysis/blending. The host/DAW smoke test is still required to confirm compatibility with the target DAW.
 
+## Ancient Voices
+
+The ANCIENT page adds Aulos, Lyre, Bronze Gong, and Found Metal modes, plus six factory presets in the **Ancient** category. These are original additive/modal synthesis models inspired by public reporting about the instruments and metallic objects used in the score of *The Odyssey*. PAS 1 does not contain, sample, or reproduce the film's audio. The local recipe generator recognizes instrument names and can build a starting patch for each voice.
+
+Background reading: [The Guardian](https://www.theguardian.com/film/2026/jul/23/the-odyssey-music-ludwig-goransson-christopher-nolan) and [Variety](https://variety.com/2026/artisans/news/the-odyssey-ludwig-goransson-film-score-1236813153/).
+
 ## Dependency and licensing notes
 
 - JUCE is pinned to tag `8.0.8`. JUCE is dual-licensed under GPLv3 or a commercial JUCE license; review the current JUCE terms and choose the appropriate license before distributing a closed-source product.
@@ -96,4 +104,4 @@ The DSP tests cover oscillator signal/range and pulse width, wavetable scan, env
 
 ## Roadmap
 
-The implementation follows the supplied stages: core instrument, expanded synth engine, effects, presets, local rule-based sound generator, morph controls, Sound DNA, interface refinement, and release hardening. Implemented work includes the 16-route modulation matrix, tested mono note-priority behavior, and sample-accurate portamento. The preset-library portion includes search, filters, organization, and user-preset management. Dependency-free DSP/generator/DNA/modulation/portamento/note-priority tests pass. Remaining interface work, release hardening, GitHub Actions verification, and VST3/DAW compatibility are not yet complete or verified.
+The implementation follows the supplied stages: core instrument, expanded synth engine, effects, presets, local rule-based sound generator, morph controls, Sound DNA, interface refinement, and release hardening. Implemented work includes the 16-route modulation matrix, tested mono note-priority behavior, and sample-accurate portamento. The preset-library portion includes search, filters, organization, and user-preset management. Dependency-free DSP/generator/DNA/modulation/portamento/note-priority tests are available. Remaining work is release validation: a fresh GitHub Actions run for the current source, VST3/DAW compatibility, host automation and state-restore checks, and interface testing in a real plugin host.

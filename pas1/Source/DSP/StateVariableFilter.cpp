@@ -6,6 +6,27 @@
 namespace pas1::dsp {
 namespace {
 constexpr double pi = 3.14159265358979323846;
+constexpr float minimumQ = 0.70710678f;
+constexpr float maximumQ = 12.0f;
+constexpr float resonanceCurve = 2.2f;
+}
+
+float StateVariableFilter::resonanceToQ(float resonance) noexcept {
+    if (!std::isfinite(resonance))
+        resonance = 0.0f;
+    resonance = std::clamp(resonance, 0.0f, 1.0f);
+    return minimumQ + (maximumQ - minimumQ) * std::pow(resonance, resonanceCurve);
+}
+
+float StateVariableFilter::migrateLegacyResonance(float legacyResonance) noexcept {
+    if (!std::isfinite(legacyResonance))
+        legacyResonance = 0.15f;
+
+    const auto oldNormalized = std::clamp(legacyResonance, 0.1f, 0.99f);
+    const auto oldQ = 0.5f + oldNormalized * 11.5f;
+    const auto normalizedNewQ = std::clamp(
+        (oldQ - minimumQ) / (maximumQ - minimumQ), 0.0f, 1.0f);
+    return std::pow(normalizedNewQ, 1.0f / resonanceCurve);
 }
 
 void StateVariableFilter::prepare(double sampleRate) noexcept {
@@ -25,13 +46,13 @@ void StateVariableFilter::setParameters(float cutoffHz, float resonance, FilterT
     if (!std::isfinite(cutoffHz))
         cutoffHz = 1000.0f;
     if (!std::isfinite(resonance))
-        resonance = 0.70710678f;
+        resonance = 0.0f;
 
     const auto maximumCutoff = static_cast<float>(std::min(20000.0, sampleRate_ * 0.45));
     cutoffHz = std::clamp(cutoffHz, 10.0f, std::max(10.0f, maximumCutoff));
-    resonance = std::clamp(resonance, 0.1f, 0.99f);
+    resonance = std::clamp(resonance, 0.0f, 1.0f);
 
-    const auto q = 0.5 + static_cast<double>(resonance) * 11.5;
+    const auto q = static_cast<double>(resonanceToQ(resonance));
     const auto g = std::tan(pi * static_cast<double>(cutoffHz) / sampleRate_);
     const auto k = 1.0 / q;
     const auto a1 = 1.0 / (1.0 + g * (g + k));

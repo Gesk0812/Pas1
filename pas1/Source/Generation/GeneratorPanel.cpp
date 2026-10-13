@@ -1,22 +1,36 @@
 #include "GeneratorPanel.h"
+#include "Generation/SoundTraitDictionary.h"
+#include "UI/Utf8Text.h"
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <functional>
 #include <iterator>
+#include <limits>
+#include <string_view>
+#include <utility>
 
 namespace {
-const juce::Colour panelBackground{0xff1a1c21};
-const juce::Colour panelAccent{0xffcf7bff};
-const juce::Colour panelText{0xfff4f0f7};
-const juce::Colour panelMuted{0xffaaa4b1};
+const juce::Colour panelBackground{0xff302015};
+const juce::Colour panelAccent{0xffd8b36a};
+const juce::Colour panelText{0xfff4e8cf};
+const juce::Colour panelMuted{0xffbba483};
+const std::array<const char*, 10> serializedVariationModes{
+    "Full Random", "Subtle", "Aggressive", "Genre", "Morph", "Texture",
+    "Preset Mutation", "Generate Similar", "Surprise Me", "Seeded"};
+const std::array<const char*, 10> displayedVariationModes{
+    "Случайный", "Мягкая вариация", "Радикальная", "По жанру",
+    "Морфинг", "Текстура", "Модификация", "Похожий звук", "Сюрприз", "По зерну"};
 
 void setupSlider(juce::Slider& slider) {
     slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 58, 18);
     slider.setRange(0.0, 1.0, 0.01);
     slider.setValue(0.5, juce::dontSendNotification);
+    slider.setDoubleClickReturnValue(true, 0.5);
     slider.setColour(juce::Slider::rotarySliderFillColourId, panelAccent);
-    slider.setColour(juce::Slider::rotarySliderOutlineColourId, juce::Colour{0xff393641});
+    slider.setColour(juce::Slider::rotarySliderOutlineColourId, juce::Colour{0xff745332});
     slider.setColour(juce::Slider::thumbColourId, panelText);
     slider.setColour(juce::Slider::textBoxTextColourId, panelText);
     slider.setColour(juce::Slider::textBoxBackgroundColourId, panelBackground);
@@ -28,33 +42,215 @@ void setupButton(juce::TextButton& button) {
     button.setColour(juce::TextButton::textColourOffId, panelText);
     button.setColour(juce::TextButton::textColourOnId, panelAccent);
 }
+
+juce::String dictionaryString(std::string_view text) {
+    return juce::String::fromUTF8(text.data(), static_cast<int>(text.size()));
+}
+
+class SoundTraitDictionaryContents final : public juce::Component,
+                                           private juce::ListBoxModel {
+public:
+    explicit SoundTraitDictionaryContents(std::function<void(std::string)> insertWord)
+        : insertWord_(std::move(insertWord)), list_("sound-traits", this) {
+        search_.setTextToShowWhenEmpty(
+            pas1::ui::utf8String("Поиск по словам и описаниям…"), panelMuted);
+        search_.setColour(juce::TextEditor::backgroundColourId, panelBackground);
+        search_.setColour(juce::TextEditor::textColourId, panelText);
+        search_.setColour(juce::TextEditor::outlineColourId, juce::Colour{0xff745332});
+        search_.onTextChange = [this] { refreshRows(); };
+        addAndMakeVisible(search_);
+
+        count_.setColour(juce::Label::textColourId, panelMuted);
+        count_.setJustificationType(juce::Justification::centredLeft);
+        addAndMakeVisible(count_);
+
+        list_.setRowHeight(28);
+        list_.setColour(juce::ListBox::backgroundColourId, panelBackground);
+        list_.setColour(juce::ListBox::outlineColourId, juce::Colour{0xff745332});
+        list_.setOutlineThickness(1);
+        list_.setMultipleSelectionEnabled(false);
+        addAndMakeVisible(list_);
+
+        details_.setMultiLine(true);
+        details_.setReadOnly(true);
+        details_.setCaretVisible(false);
+        details_.setScrollbarsShown(true);
+        details_.setColour(juce::TextEditor::backgroundColourId, panelBackground);
+        details_.setColour(juce::TextEditor::textColourId, panelText);
+        details_.setColour(juce::TextEditor::outlineColourId, juce::Colour{0xff745332});
+        addAndMakeVisible(details_);
+
+        insertButton_.setButtonText(pas1::ui::utf8String("ВСТАВИТЬ СЛОВО"));
+        setupButton(insertButton_);
+        insertButton_.onClick = [this] { insertSelected(); };
+        addAndMakeVisible(insertButton_);
+        refreshRows();
+    }
+
+    void resized() override {
+        auto bounds = getLocalBounds().reduced(14);
+        search_.setBounds(bounds.removeFromTop(34));
+        count_.setBounds(bounds.removeFromTop(26));
+        auto lower = bounds;
+        auto detailsArea = lower.removeFromBottom(118);
+        lower.removeFromBottom(8);
+        list_.setBounds(lower);
+        details_.setBounds(detailsArea.removeFromLeft(detailsArea.getWidth() - 146));
+        detailsArea.removeFromLeft(8);
+        insertButton_.setBounds(detailsArea.removeFromTop(38));
+    }
+
+private:
+    int getNumRows() override {
+        return static_cast<int>(visibleRows_.size());
+    }
+
+    void paintListBoxItem(int rowNumber, juce::Graphics& graphics, int width,
+                          int height, bool rowIsSelected) override {
+        if (rowNumber < 0 || rowNumber >= static_cast<int>(visibleRows_.size()))
+            return;
+
+        const auto& entry = pas1::generation::soundTraitDictionary()[
+            static_cast<std::size_t>(visibleRows_[static_cast<std::size_t>(rowNumber)])];
+        if (rowIsSelected)
+            graphics.fillAll(juce::Colour{0xff513522});
+        graphics.setColour(rowIsSelected ? panelText : panelMuted);
+        graphics.setFont(juce::FontOptions{13.0f});
+        const auto label = dictionaryString(entry.term) + "  —  "
+                           + dictionaryString(pas1::generation::soundTraitLabel(entry.trait));
+        graphics.drawText(label, 9, 0, width - 18, height,
+                          juce::Justification::centredLeft, true);
+    }
+
+    void selectedRowsChanged(int rowNumber) override {
+        if (rowNumber >= 0 && rowNumber < static_cast<int>(visibleRows_.size()))
+            updateDetails(rowNumber);
+    }
+
+    void listBoxItemDoubleClicked(int rowNumber, const juce::MouseEvent&) override {
+        selectAndInsert(rowNumber);
+    }
+
+    void refreshRows() {
+        visibleRows_.clear();
+        const auto query = search_.getText().trim();
+        const auto& entries = pas1::generation::soundTraitDictionary();
+        for (std::size_t index = 0; index < entries.size(); ++index) {
+            const auto& entry = entries[index];
+            const auto searchable = dictionaryString(entry.term) + " "
+                                    + dictionaryString(
+                                        pas1::generation::soundTraitLabel(entry.trait))
+                                    + " "
+                                    + dictionaryString(
+                                        pas1::generation::soundTraitDescription(entry.trait));
+            if (query.isEmpty() || searchable.containsIgnoreCase(query))
+                visibleRows_.push_back(static_cast<int>(index));
+        }
+        list_.updateContent();
+        count_.setText(juce::String(visibleRows_.size())
+                           + pas1::ui::utf8String(" из ")
+                           + juce::String(entries.size())
+                           + pas1::ui::utf8String(" слов"),
+                       juce::dontSendNotification);
+        if (!visibleRows_.empty())
+            list_.selectRow(0);
+        else
+            details_.clear();
+    }
+
+    void updateDetails(int rowNumber) {
+        const auto& entry = pas1::generation::soundTraitDictionary()[
+            static_cast<std::size_t>(visibleRows_[static_cast<std::size_t>(rowNumber)])];
+        details_.setText(dictionaryString(entry.term) + " — "
+                             + dictionaryString(
+                                 pas1::generation::soundTraitLabel(entry.trait))
+                             + "\n"
+                             + dictionaryString(
+                                 pas1::generation::soundTraitDescription(entry.trait)),
+                         juce::dontSendNotification);
+    }
+
+    void selectAndInsert(int rowNumber) {
+        if (rowNumber < 0 || rowNumber >= static_cast<int>(visibleRows_.size()))
+            return;
+        list_.selectRow(rowNumber);
+        const auto& entry = pas1::generation::soundTraitDictionary()[
+            static_cast<std::size_t>(visibleRows_[static_cast<std::size_t>(rowNumber)])];
+        insertWord_(std::string{entry.term});
+    }
+
+    void insertSelected() {
+        const auto row = list_.getSelectedRow();
+        selectAndInsert(row);
+    }
+
+    std::function<void(std::string)> insertWord_;
+    juce::TextEditor search_;
+    juce::Label count_;
+    juce::ListBox list_;
+    juce::TextEditor details_;
+    juce::TextButton insertButton_;
+    std::vector<int> visibleRows_;
+};
+
+class SoundTraitDictionaryWindow final : public juce::DocumentWindow {
+public:
+    explicit SoundTraitDictionaryWindow(std::function<void(std::string)> insertWord)
+        : juce::DocumentWindow(pas1::ui::utf8String("Словарь звуковых признаков — 500 слов"),
+                               panelBackground, juce::DocumentWindow::closeButton) {
+        setUsingNativeTitleBar(false);
+        setResizable(true, true);
+        setContentOwned(new SoundTraitDictionaryContents(std::move(insertWord)), true);
+        setSize(760, 590);
+        setResizeLimits(520, 400, 1400, 1100);
+        addToDesktop(0);
+        centreWithSize(getWidth(), getHeight());
+    }
+
+    void closeButtonPressed() override {
+        setVisible(false);
+    }
+};
 } // namespace
 
 GeneratorPanel::GeneratorPanel(Pas1AudioProcessor& processor) : processor_(processor) {
     recipeText.setMultiLine(true);
     recipeText.setReturnKeyStartsNewLine(true);
     recipeText.setTextToShowWhenEmpty(
-        "Describe a sound, e.g. warm evolving analog bass with metallic attack and a wide tail.",
+        pas1::ui::utf8String("Опишите звук, например: тёплый подвижный аналоговый бас с металлической атакой и длинным широким хвостом."),
         panelMuted);
     recipeText.setColour(juce::TextEditor::backgroundColourId, panelBackground);
     recipeText.setColour(juce::TextEditor::textColourId, panelText);
-    recipeText.setColour(juce::TextEditor::outlineColourId, juce::Colour{0xff393641});
+    recipeText.setColour(juce::TextEditor::outlineColourId, juce::Colour{0xff745332});
+    recipeText.setTooltip(pas1::ui::utf8String(
+        "Генератор понимает описания тембра и характера на русском и английском. После ввода нажмите «РЕЦЕПТ»: звук сначала предварительно прослушивается."));
+    recipeText.onTextChange = [this] { updateRecipeExplanation(); };
     addAndMakeVisible(recipeText);
+    setupButton(dictionaryButton);
+    dictionaryButton.setTooltip(pas1::ui::utf8String(
+        "Открыть поиск по 500 русским и английским словам. Выберите слово и вставьте его в описание."));
+    dictionaryButton.onClick = [this] { showWordDictionary(); };
+    addAndMakeVisible(dictionaryButton);
 
-    variationMode.addItemList(
-        {"Full Random", "Subtle", "Aggressive", "Genre", "Morph", "Texture",
-         "Preset Mutation", "Generate Similar", "Surprise Me", "Seeded"}, 1);
+    for (std::size_t index = 0; index < displayedVariationModes.size(); ++index)
+        variationMode.addItem(pas1::ui::utf8String(displayedVariationModes[index]),
+                              static_cast<int>(index) + 1);
     variationMode.setSelectedId(2, juce::dontSendNotification);
     variationMode.setColour(juce::ComboBox::backgroundColourId, panelBackground);
     variationMode.setColour(juce::ComboBox::textColourId, panelText);
-    variationMode.setColour(juce::ComboBox::outlineColourId, juce::Colour{0xff393641});
+    variationMode.setColour(juce::ComboBox::outlineColourId, juce::Colour{0xff745332});
+    variationMode.setTooltip(pas1::ui::utf8String("Выберите способ создания вариации. Режим «По зерну» позволяет повторить результат по заданному числу."));
     addAndMakeVisible(variationMode);
 
     variationAmount.setSliderStyle(juce::Slider::LinearHorizontal);
     variationAmount.setTextBoxStyle(juce::Slider::TextBoxRight, false, 42, 22);
     variationAmount.setRange(0.0, 100.0, 1.0);
+    variationAmount.setTextValueSuffix(" %");
     variationAmount.setValue(35.0, juce::dontSendNotification);
     variationAmount.setTextValueSuffix("%");
+    variationAmount.setDoubleClickReturnValue(true, 35.0);
+    variationAmount.setTooltip(pas1::ui::utf8String(
+        "Сила изменений для вариаций: 0% почти сохраняет исходный звук, 100% меняет его сильнее. Двойной щелчок возвращает 35%."));
     variationAmount.setColour(juce::Slider::trackColourId, panelAccent);
     variationAmount.setColour(juce::Slider::thumbColourId, panelText);
     variationAmount.setColour(juce::Slider::textBoxTextColourId, panelText);
@@ -64,18 +260,49 @@ GeneratorPanel::GeneratorPanel(Pas1AudioProcessor& processor) : processor_(proce
     seedText.setText("1", juce::dontSendNotification);
     seedText.setColour(juce::TextEditor::backgroundColourId, panelBackground);
     seedText.setColour(juce::TextEditor::textColourId, panelText);
-    seedText.setColour(juce::TextEditor::outlineColourId, juce::Colour{0xff393641});
+    seedText.setColour(juce::TextEditor::outlineColourId, juce::Colour{0xff745332});
+    seedText.setTooltip(pas1::ui::utf8String("Введите то же зерно генерации, чтобы повторить вариацию."));
+    seedText.setInputRestrictions(10, "0123456789");
     addAndMakeVisible(seedText);
     lockedParameters.setText("master, polyphony", juce::dontSendNotification);
     lockedParameters.setColour(juce::TextEditor::backgroundColourId, panelBackground);
     lockedParameters.setColour(juce::TextEditor::textColourId, panelText);
-    lockedParameters.setColour(juce::TextEditor::outlineColourId, juce::Colour{0xff393641});
+    lockedParameters.setColour(juce::TextEditor::outlineColourId, juce::Colour{0xff745332});
+    lockedParameters.setTooltip(pas1::ui::utf8String("Перечислите через запятую ID параметров, которые генератор не должен менять."));
+    lockedParameters.onTextChange = [this] { updateRecipeExplanation(); };
     addAndMakeVisible(lockedParameters);
+    const std::array<juce::String, 4> sectionTooltips{
+        pas1::ui::utf8String("Не менять настройки осцилляторов, унисона, волновой таблицы, саб-низа, шума и музыкальной шкатулки."),
+        pas1::ui::utf8String("Не менять фильтр и амплитудную/фильтровую огибающие."),
+        pas1::ui::utf8String("Не менять низкочастотные генераторы и матрицу модуляции."),
+        pas1::ui::utf8String("Не менять искажение, хорус, фазер, задержку, реверберацию, эквалайзер и ширину стерео.")};
+    for (std::size_t index = 0; index < sectionLockButtons.size(); ++index) {
+        auto& button = sectionLockButtons[index];
+        setupButton(button);
+        button.setClickingTogglesState(true);
+        button.setColour(juce::TextButton::buttonOnColourId,
+                         panelAccent.withAlpha(0.24f));
+        button.setTooltip(sectionTooltips[index]);
+        button.onClick = [this] {
+            const auto activeLocks = std::count_if(
+                sectionLockButtons.begin(), sectionLockButtons.end(),
+                [](const auto& lockButton) { return lockButton.getToggleState(); });
+            statusLabel.setText(
+                activeLocks == 0
+                    ? pas1::ui::utf8String("Блокировки разделов выключены; действуют только дополнительные ID параметров.")
+                    : juce::String(activeLocks)
+                          + pas1::ui::utf8String(" блокировок разделов действует при генерации."),
+                juce::dontSendNotification);
+            updateRecipeExplanation();
+        };
+        addAndMakeVisible(button);
+    }
 
-    variationSelector.setTextWhenNothingSelected("Choose a variation");
+    variationSelector.setTextWhenNothingSelected(pas1::ui::utf8String("Выберите вариацию"));
     variationSelector.setColour(juce::ComboBox::backgroundColourId, panelBackground);
     variationSelector.setColour(juce::ComboBox::textColourId, panelText);
-    variationSelector.setColour(juce::ComboBox::outlineColourId, juce::Colour{0xff393641});
+    variationSelector.setColour(juce::ComboBox::outlineColourId, juce::Colour{0xff745332});
+    variationSelector.setTooltip(pas1::ui::utf8String("Для каждой вариации показано зерно генерации. Сравните звук кнопкой «До / После»."));
     variationSelector.onChange = [this] {
         if (variationSelector.getSelectedId() > 0)
             selectVariation(variationSelector.getSelectedId() - 1);
@@ -84,12 +311,41 @@ GeneratorPanel::GeneratorPanel(Pas1AudioProcessor& processor) : processor_(proce
 
     for (std::size_t index = 0; index < controls.size(); ++index) {
         setupSlider(controls[index]);
+        static const std::array<juce::String, 9> controlTooltips{
+            pas1::ui::utf8String("Насколько рецепт сохраняет базовый тембр исходного пресета."),
+            pas1::ui::utf8String("Сдвигает рецепт в сторону более яркого или более тёмного звучания."),
+            pas1::ui::utf8String("Меняет насыщенность и количество гармоник."),
+            pas1::ui::utf8String("Увеличивает или уменьшает движение и модуляцию тембра."),
+            pas1::ui::utf8String("Усиливает напор, резкость и выраженность тембра."),
+            pas1::ui::utf8String("Регулирует пространственность, реверберацию и длину хвоста."),
+            pas1::ui::utf8String("Меняет выраженность верхних гармоник и металлического оттенка."),
+            pas1::ui::utf8String("Регулирует уровень и насыщенность басовой составляющей."),
+            pas1::ui::utf8String("Управляет шириной стереоэффектов.")};
+        controls[index].setTooltip(controlTooltips[index]
+                                   + pas1::ui::utf8String(
+                                       " Двойной щелчок возвращает середину диапазона."));
+        controls[index].onValueChange = [this] { updateRecipeExplanation(); };
         addAndMakeVisible(controls[index]);
         controlLabels[index].setText(controlNames[index], juce::dontSendNotification);
         controlLabels[index].setJustificationType(juce::Justification::centred);
         controlLabels[index].setColour(juce::Label::textColourId, panelMuted);
+        controlLabels[index].setTooltip(controls[index].getTooltip());
         addAndMakeVisible(controlLabels[index]);
     }
+
+    interpretationLabel.setMultiLine(true);
+    interpretationLabel.setReadOnly(true);
+    interpretationLabel.setCaretVisible(false);
+    interpretationLabel.setPopupMenuEnabled(false);
+    interpretationLabel.setScrollbarsShown(true);
+    interpretationLabel.setWantsKeyboardFocus(false);
+    interpretationLabel.setColour(juce::TextEditor::backgroundColourId, panelBackground);
+    interpretationLabel.setColour(juce::TextEditor::textColourId, panelMuted);
+    interpretationLabel.setFont(juce::FontOptions{9.5f});
+    interpretationLabel.setColour(juce::TextEditor::outlineColourId, panelBackground);
+    interpretationLabel.setTooltip(pas1::ui::utf8String(
+        "Показывает распознанные признаки запроса, слова без правила обработки и параметры, которые изменятся после нажатия «РЕЦЕПТ»."));
+    addAndMakeVisible(interpretationLabel);
 
     const auto addButton = [this](juce::TextButton& button) {
         setupButton(button);
@@ -97,7 +353,8 @@ GeneratorPanel::GeneratorPanel(Pas1AudioProcessor& processor) : processor_(proce
     };
     for (auto* button : {&recipeButton, &variationButton, &generateFourButton,
                          &generateSixteenButton, &beforeAfterButton, &undoButton, &redoButton,
-                         &keepButton, &revertButton, &applyButton, &saveRecipeButton})
+                         &keepButton, &revertButton, &applyButton, &saveRecipeButton,
+                         &loadRecipeButton})
         addButton(*button);
 
     recipeButton.onClick = [this] { previewRecipe(); };
@@ -116,23 +373,28 @@ GeneratorPanel::GeneratorPanel(Pas1AudioProcessor& processor) : processor_(proce
         showingBefore = false;
         undoStates.clear();
         redoStates.clear();
-        statusLabel.setText("Applied. Continue editing or save it as a preset.", juce::dontSendNotification);
+        statusLabel.setText(pas1::ui::utf8String("Применено. Продолжайте настройку или сохраните звук как пресет."),
+                            juce::dontSendNotification);
     };
     saveRecipeButton.onClick = [this] { saveRecipe(); };
+    loadRecipeButton.onClick = [this] { loadRecipe(); };
+    recipeButton.setTooltip(pas1::ui::utf8String("Создать и прослушать звук по текстовому описанию."));
 
     for (auto* pair : {&amountLabel, &modeLabel, &seedLabel, &lockedLabel, &variationLabel})
         pair->setColour(juce::Label::textColourId, panelMuted);
-    amountLabel.setText("Variation Amount", juce::dontSendNotification);
-    modeLabel.setText("Mode", juce::dontSendNotification);
-    seedLabel.setText("Seed", juce::dontSendNotification);
-    lockedLabel.setText("Locked parameter IDs", juce::dontSendNotification);
-    variationLabel.setText("Generated set", juce::dontSendNotification);
+    amountLabel.setText(pas1::ui::utf8String("СИЛА ВАРИАЦИИ"), juce::dontSendNotification);
+    modeLabel.setText(pas1::ui::utf8String("РЕЖИМ"), juce::dontSendNotification);
+    seedLabel.setText(pas1::ui::utf8String("ЗЕРНО"), juce::dontSendNotification);
+    lockedLabel.setText(pas1::ui::utf8String("БЛОКИРОВКИ · ДОП. ID"), juce::dontSendNotification);
+    variationLabel.setText(pas1::ui::utf8String("НАБОР ВАРИАЦИЙ"), juce::dontSendNotification);
     for (auto* label : {&amountLabel, &modeLabel, &seedLabel, &lockedLabel, &variationLabel})
         addAndMakeVisible(*label);
 
     statusLabel.setColour(juce::Label::textColourId, panelMuted);
-    statusLabel.setText("Local rule-based generator — no AI model or network connection.", juce::dontSendNotification);
+    statusLabel.setText(pas1::ui::utf8String("Локальный генератор по правилам — без ИИ-модели и подключения к сети."),
+                        juce::dontSendNotification);
     addAndMakeVisible(statusLabel);
+    updateRecipeExplanation();
 }
 
 void GeneratorPanel::paint(juce::Graphics& graphics) {
@@ -142,19 +404,21 @@ void GeneratorPanel::paint(juce::Graphics& graphics) {
 
 void GeneratorPanel::resized() {
     const auto width = getWidth();
-    recipeText.setBounds(12, 14, width - 24, 58);
+    recipeText.setBounds(12, 14, width - 166, 58);
+    dictionaryButton.setBounds(width - 148, 14, 136, 58);
+    interpretationLabel.setBounds(14, 74, width - 28, 40);
 
     const auto cellWidth = (width - 40) / 3;
     for (std::size_t index = 0; index < controls.size(); ++index) {
         const auto row = static_cast<int>(index / 3);
         const auto column = static_cast<int>(index % 3);
         const auto x = 12 + column * cellWidth;
-        const auto y = 82 + row * 90;
+        const auto y = 118 + row * 90;
         controlLabels[index].setBounds(x, y, cellWidth, 18);
         controls[index].setBounds(x + (cellWidth - 88) / 2, y + 16, 88, 72);
     }
 
-    const auto controlY = 358;
+    const auto controlY = 392;
     amountLabel.setBounds(16, controlY, 136, 18);
     variationAmount.setBounds(16, controlY + 16, 190, 28);
     modeLabel.setBounds(216, controlY, 116, 18);
@@ -163,10 +427,19 @@ void GeneratorPanel::resized() {
     seedText.setBounds(376, controlY + 16, 88, 28);
     variationLabel.setBounds(474, controlY, 142, 18);
     variationSelector.setBounds(474, controlY + 16, 170, 28);
-    lockedLabel.setBounds(654, controlY, width - 666, 18);
-    lockedParameters.setBounds(654, controlY + 16, width - 666, 28);
+    const auto lockAreaWidth = std::max(0, width - 666);
+    lockedLabel.setBounds(654, controlY, lockAreaWidth, 18);
+    const auto lockButtonGap = 4;
+    const auto lockButtonWidth = std::max(
+        38, (lockAreaWidth - lockButtonGap * static_cast<int>(sectionLockButtons.size() - 1))
+                / static_cast<int>(sectionLockButtons.size()));
+    for (std::size_t index = 0; index < sectionLockButtons.size(); ++index)
+        sectionLockButtons[index].setBounds(
+            654 + static_cast<int>(index) * (lockButtonWidth + lockButtonGap),
+            controlY + 16, lockButtonWidth, 22);
+    lockedParameters.setBounds(654, controlY + 41, lockAreaWidth, 23);
 
-    const auto buttonY = 414;
+    const auto buttonY = 474;
     const auto buttonGap = 8;
     const auto buttonWidth = std::max(62, (width - 40 - 6 * buttonGap) / 7);
     juce::TextButton* firstRow[]{
@@ -176,12 +449,32 @@ void GeneratorPanel::resized() {
         firstRow[index]->setBounds(12 + static_cast<int>(index) * (buttonWidth + buttonGap),
                                    buttonY, buttonWidth, 30);
 
-    juce::TextButton* secondRow[]{&keepButton, &revertButton, &applyButton, &saveRecipeButton};
-    const auto secondWidth = std::max(100, (width - 48) / 4);
+    juce::TextButton* secondRow[]{
+        &keepButton, &revertButton, &applyButton, &saveRecipeButton, &loadRecipeButton};
+    const auto secondWidth = std::max(100, (width - 56) / 5);
     for (std::size_t index = 0; index < std::size(secondRow); ++index)
         secondRow[index]->setBounds(12 + static_cast<int>(index) * (secondWidth + 8),
                                     buttonY + 38, secondWidth, 30);
-    statusLabel.setBounds(14, buttonY + 74, width - 28, 22);
+    statusLabel.setBounds(14, buttonY + 74, width - 28, 42);
+}
+
+void GeneratorPanel::showWordDictionary() {
+    if (!dictionaryWindow) {
+        juce::Component::SafePointer<GeneratorPanel> safeThis(this);
+        dictionaryWindow = std::make_unique<SoundTraitDictionaryWindow>(
+            [safeThis](std::string term) {
+                if (safeThis == nullptr)
+                    return;
+                auto description = safeThis->recipeText.getText().trim();
+                if (description.isNotEmpty())
+                    description += " ";
+                description += dictionaryString(term);
+                safeThis->recipeText.setText(description, juce::sendNotification);
+                safeThis->recipeText.grabKeyboardFocus();
+            });
+    }
+    dictionaryWindow->setVisible(true);
+    dictionaryWindow->toFront(true);
 }
 
 GeneratorPanel::ParameterList GeneratorPanel::captureParameters() const {
@@ -252,10 +545,96 @@ void GeneratorPanel::previewRecipe() {
     beginPreview();
     pushUndoState();
     const auto result = pas1::generation::SoundGenerator::createRecipe(
-        captureParameters(), recipeText.getText().toStdString(), getRecipeControls());
+        captureParameters(), recipeText.getText().toStdString(), getRecipeControls(),
+        getLockedParameters());
     applyParameters(result);
-    statusLabel.setText("Recipe preview active. Use Apply to keep it or Revert to restore the previous sound.",
-                        juce::dontSendNotification);
+    statusLabel.setText(
+        pas1::ui::utf8String("Прослушивание рецепта. Нажмите «Применить», чтобы оставить звук, или «Вернуть», чтобы восстановить прежний."),
+        juce::dontSendNotification);
+}
+
+void GeneratorPanel::updateRecipeExplanation() {
+    const auto description = recipeText.getText().trim();
+    if (description.isEmpty()) {
+        interpretationLabel.setText(
+            pas1::ui::utf8String(
+                "Введите описание тембра. Генератор распознаёт перечисленные в запросе признаки и заранее покажет, какие слова пропускает."),
+            juce::dontSendNotification);
+        return;
+    }
+
+    const auto text = description.toStdString();
+    const auto interpretation =
+        pas1::generation::SoundGenerator::analyzeDescription(text);
+    const auto before = captureParameters();
+    const auto after = pas1::generation::SoundGenerator::createRecipe(
+        before, text, getRecipeControls(), getLockedParameters());
+
+    juce::String recognized;
+    for (std::size_t index = 0; index < interpretation.recognizedTraits.size()
+                                && index < 3; ++index) {
+        if (recognized.isNotEmpty())
+            recognized += pas1::ui::utf8String(", ");
+        recognized += juce::String::fromUTF8(
+            interpretation.recognizedTraits[index].c_str()).substring(0, 18);
+    }
+    if (interpretation.recognizedTraits.size() > 3)
+        recognized += pas1::ui::utf8String(" и ещё ")
+                      + juce::String(static_cast<int>(
+                            interpretation.recognizedTraits.size() - 3));
+    if (recognized.isEmpty())
+        recognized = pas1::ui::utf8String("нет знакомых признаков");
+
+    juce::String unsupported;
+    for (std::size_t index = 0; index < interpretation.unsupportedWords.size()
+                                && index < 3; ++index) {
+        if (unsupported.isNotEmpty())
+            unsupported += pas1::ui::utf8String(", ");
+        unsupported += juce::String::fromUTF8(
+            interpretation.unsupportedWords[index].c_str()).substring(0, 15);
+    }
+    if (interpretation.unsupportedWords.size() > 3)
+        unsupported += pas1::ui::utf8String(" и ещё ")
+                       + juce::String(static_cast<int>(
+                             interpretation.unsupportedWords.size() - 3));
+    if (unsupported.isEmpty())
+        unsupported = pas1::ui::utf8String("нет");
+
+    juce::String changed;
+    int changedCount = 0;
+    for (const auto& next : after) {
+        const auto previous = std::find_if(
+            before.begin(), before.end(), [&next](const auto& value) {
+                return value.id == next.id;
+            });
+        if (previous == before.end()
+            || std::abs(previous->normalizedValue - next.normalizedValue) < 0.001f)
+            continue;
+
+        ++changedCount;
+        if (changedCount > 3)
+            continue;
+        if (changed.isNotEmpty())
+            changed += pas1::ui::utf8String(", ");
+        if (const auto* parameter =
+                processor_.parameters.getParameter(
+                    juce::String::fromUTF8(next.id.c_str()))) {
+            changed += parameter->getName(24);
+        } else {
+            changed += juce::String::fromUTF8(next.id.c_str()).substring(0, 24);
+        }
+    }
+    if (changedCount > 3)
+        changed += pas1::ui::utf8String(" и ещё ")
+                   + juce::String(changedCount - 3);
+    if (changedCount == 0)
+        changed = pas1::ui::utf8String("нет — слова не задали новые параметры");
+
+    interpretationLabel.setText(
+        pas1::ui::utf8String("Распознано: ") + recognized
+            + pas1::ui::utf8String("  ·  Не распознано: ") + unsupported
+            + pas1::ui::utf8String("\nИзменятся: ") + changed,
+        juce::dontSendNotification);
 }
 
 void GeneratorPanel::previewVariation() {
@@ -271,13 +650,16 @@ void GeneratorPanel::previewVariation() {
         static_cast<float>(variationAmount.getValue() / 100.0), seed,
         getLockedParameters(), recipeText.getText().toStdString());
     applyParameters(result);
-    statusLabel.setText("Variation preview active. The selected seed can reproduce this result.",
+    statusLabel.setText(pas1::ui::utf8String("Прослушивание вариации — зерно ")
+                            + juce::String(static_cast<juce::int64>(seed))
+                            + pas1::ui::utf8String(". Введите это зерно снова, чтобы повторить результат."),
                         juce::dontSendNotification);
 }
 
 void GeneratorPanel::generateVariations(int count) {
     beginPreview();
     variations.clear();
+    variationSeeds.clear();
     variationSelector.clear(juce::dontSendNotification);
     const auto baseState = processor_.parameters.copyState();
     const auto base = captureParameters();
@@ -288,19 +670,29 @@ void GeneratorPanel::generateVariations(int count) {
     }
     if (seed == 0)
         seed = 0x6d2b79f5u;
+    seedText.setText(juce::String(static_cast<juce::int64>(seed)),
+                     juce::dontSendNotification);
 
     for (int index = 0; index < count; ++index) {
+        const auto variationSeed =
+            seed + static_cast<std::uint32_t>(index) * 2654435761u;
         const auto result = pas1::generation::SoundGenerator::createVariation(
             base, getVariationMode(), static_cast<float>(variationAmount.getValue() / 100.0),
-            seed + static_cast<std::uint32_t>(index) * 2654435761u,
+            variationSeed,
             getLockedParameters(), recipeText.getText().toStdString());
         variations.push_back(makeSnapshot(baseState, result));
-        variationSelector.addItem("Variation " + juce::String(index + 1), index + 1);
+        variationSeeds.push_back(variationSeed);
+        variationSelector.addItem(
+            pas1::ui::utf8String("Вариация ") + juce::String(index + 1)
+                + pas1::ui::utf8String(" — зерно ")
+                + juce::String(static_cast<juce::int64>(variationSeed)),
+            index + 1);
     }
 
     if (!variations.empty()) {
         variationSelector.setSelectedId(1, juce::sendNotification);
-        statusLabel.setText(juce::String(count) + " variations generated. Select one to preview.",
+        statusLabel.setText(juce::String(count)
+                                + pas1::ui::utf8String(" вариаций создано. Выберите одну, чтобы прослушать или сравнить."),
                             juce::dontSendNotification);
     }
 }
@@ -310,9 +702,19 @@ void GeneratorPanel::selectVariation(int index) {
         return;
     pushUndoState();
     applyState(variations[static_cast<std::size_t>(index)]);
+    if (index < static_cast<int>(variationSeeds.size()))
+        seedText.setText(
+            juce::String(static_cast<juce::int64>(
+                variationSeeds[static_cast<std::size_t>(index)])),
+            juce::dontSendNotification);
     afterState = processor_.parameters.copyState();
-    statusLabel.setText("Previewing variation " + juce::String(index + 1)
-                            + ". Apply to keep it or Revert to restore the previous sound.",
+    auto status = pas1::ui::utf8String("Прослушивание вариации ") + juce::String(index + 1);
+    if (index < static_cast<int>(variationSeeds.size()))
+        status += pas1::ui::utf8String(" — зерно ")
+                  + juce::String(static_cast<juce::int64>(
+                      variationSeeds[static_cast<std::size_t>(index)]));
+    statusLabel.setText(status
+                            + pas1::ui::utf8String(". Нажмите «Применить», чтобы оставить звук, или «Вернуть», чтобы восстановить прежний."),
                         juce::dontSendNotification);
 }
 
@@ -347,12 +749,12 @@ void GeneratorPanel::showBeforeAfter() {
     if (showingBefore) {
         applyState(afterState);
         showingBefore = false;
-        statusLabel.setText("Showing generated sound.", juce::dontSendNotification);
+        statusLabel.setText(pas1::ui::utf8String("Показан созданный звук."), juce::dontSendNotification);
     } else {
         afterState = processor_.parameters.copyState();
         applyState(originalState);
         showingBefore = true;
-        statusLabel.setText("Showing sound before generation.", juce::dontSendNotification);
+        statusLabel.setText(pas1::ui::utf8String("Показан звук до генерации."), juce::dontSendNotification);
     }
 }
 
@@ -363,7 +765,8 @@ void GeneratorPanel::keepCurrent() {
     showingBefore = false;
     undoStates.clear();
     redoStates.clear();
-    statusLabel.setText("Current sound kept as the new starting point.", juce::dontSendNotification);
+    statusLabel.setText(pas1::ui::utf8String("Текущий звук сохранён как новая исходная точка."),
+                        juce::dontSendNotification);
 }
 
 void GeneratorPanel::revert() {
@@ -375,14 +778,16 @@ void GeneratorPanel::revert() {
     showingBefore = false;
     undoStates.clear();
     redoStates.clear();
-    statusLabel.setText("Previous sound restored.", juce::dontSendNotification);
+    statusLabel.setText(pas1::ui::utf8String("Предыдущий звук восстановлен."),
+                        juce::dontSendNotification);
 }
 
 void GeneratorPanel::saveRecipe() {
     processor_.presetManager.getUserPresetDirectory().createDirectory();
     fileChooser = std::make_unique<juce::FileChooser>(
-        "Save Sound Recipe",
-        processor_.presetManager.getUserPresetDirectory().getChildFile("Sound Recipe.pas1recipe"),
+        pas1::ui::utf8String("Сохранить звуковой рецепт"),
+        processor_.presetManager.getUserPresetDirectory().getChildFile(
+            pas1::ui::utf8String("Звуковой рецепт.pas1recipe")),
         "*.pas1recipe");
     juce::Component::SafePointer<GeneratorPanel> safeThis(this);
     fileChooser->launchAsync(juce::FileBrowserComponent::saveMode
@@ -399,7 +804,8 @@ void GeneratorPanel::saveRecipe() {
         object->setProperty("format", "PAS1SoundRecipe");
         object->setProperty("schemaVersion", 1);
         object->setProperty("description", safeThis->recipeText.getText());
-        object->setProperty("variationMode", safeThis->variationMode.getText());
+        const auto selectedMode = std::clamp(safeThis->variationMode.getSelectedItemIndex(), 0, 9);
+        object->setProperty("variationMode", serializedVariationModes[static_cast<std::size_t>(selectedMode)]);
         object->setProperty("variationAmount", safeThis->variationAmount.getValue());
         object->setProperty("seed", static_cast<juce::int64>(safeThis->getSeed()));
         const auto controls = safeThis->getRecipeControls();
@@ -415,14 +821,119 @@ void GeneratorPanel::saveRecipe() {
         controlObject->setProperty("stereoWidth", controls.stereoWidth);
         object->setProperty("controls", juce::var(controlObject.release()));
         object->setProperty("lockedParameters", safeThis->lockedParameters.getText());
+        auto sectionLocks = std::make_unique<juce::DynamicObject>();
+        sectionLocks->setProperty("oscillators",
+                                  safeThis->sectionLockButtons[0].getToggleState());
+        sectionLocks->setProperty("filterAndEnvelope",
+                                  safeThis->sectionLockButtons[1].getToggleState());
+        sectionLocks->setProperty("modulation",
+                                  safeThis->sectionLockButtons[2].getToggleState());
+        sectionLocks->setProperty("effects",
+                                  safeThis->sectionLockButtons[3].getToggleState());
+        object->setProperty("lockedSections", juce::var(sectionLocks.release()));
         if (!destination.replaceWithText(juce::JSON::toString(juce::var(object.release()), true)))
-            safeThis->showMessage("Could not write the recipe file.");
+            safeThis->showMessage(pas1::ui::utf8String("Не удалось записать файл рецепта."));
+    });
+}
+
+void GeneratorPanel::loadRecipe() {
+    processor_.presetManager.getUserPresetDirectory().createDirectory();
+    fileChooser = std::make_unique<juce::FileChooser>(
+        pas1::ui::utf8String("Загрузить звуковой рецепт PAS 1"),
+        processor_.presetManager.getUserPresetDirectory().getChildFile(
+            pas1::ui::utf8String("Звуковой рецепт.pas1recipe")),
+        "*.pas1recipe");
+    juce::Component::SafePointer<GeneratorPanel> safeThis(this);
+    fileChooser->launchAsync(juce::FileBrowserComponent::openMode
+                                 | juce::FileBrowserComponent::canSelectFiles,
+                             [safeThis](const juce::FileChooser& chooser) {
+        if (safeThis == nullptr)
+            return;
+        const auto source = chooser.getResult();
+        if (!source.existsAsFile())
+            return;
+        if (source.getSize() > 1024 * 1024) {
+            safeThis->showMessage(pas1::ui::utf8String("Размер файла рецепта превышает 1 МБ."));
+            return;
+        }
+
+        const auto document = juce::JSON::parse(source.loadFileAsString());
+        if (!document.isObject()
+            || document.getProperty("format", {}).toString() != "PAS1SoundRecipe"
+            || static_cast<int>(document.getProperty("schemaVersion", 0)) != 1) {
+            safeThis->showMessage(pas1::ui::utf8String("Формат файла рецепта PAS 1 не поддерживается."));
+            return;
+        }
+
+        const auto modeName = document.getProperty("variationMode", {}).toString();
+        auto modeIndex = -1;
+        for (int index = 0; index < safeThis->variationMode.getNumItems(); ++index) {
+            if (safeThis->variationMode.getItemText(index).equalsIgnoreCase(modeName)
+                || juce::String(serializedVariationModes[static_cast<std::size_t>(index)])
+                       .equalsIgnoreCase(modeName)) {
+                modeIndex = index;
+                break;
+            }
+        }
+        const auto controls = document.getProperty("controls", {});
+        if (modeIndex < 0 || !controls.isObject()) {
+            safeThis->showMessage(pas1::ui::utf8String("В рецепте отсутствует корректный режим вариации или набор настроек."));
+            return;
+        }
+
+        constexpr std::array<const char*, 9> controlKeys{
+            "character", "brightness", "density", "movement", "aggression", "space",
+            "harmonicComplexity", "bassWeight", "stereoWidth"};
+        std::array<double, controlKeys.size()> controlValues{};
+        for (std::size_t index = 0; index < controlKeys.size(); ++index) {
+            controlValues[index] = std::clamp(
+                static_cast<double>(controls.getProperty(controlKeys[index], 0.5)),
+                0.0, 1.0);
+        }
+
+        constexpr std::array<const char*, 4> sectionKeys{
+            "oscillators", "filterAndEnvelope", "modulation", "effects"};
+        const auto sectionLocks = document.getProperty("lockedSections", {});
+        for (std::size_t index = 0; index < controlValues.size(); ++index)
+            safeThis->controls[index].setValue(controlValues[index], juce::dontSendNotification);
+
+        safeThis->recipeText.setText(
+            document.getProperty("description", {}).toString(), juce::dontSendNotification);
+        safeThis->variationMode.setSelectedItemIndex(modeIndex, juce::dontSendNotification);
+        safeThis->variationAmount.setValue(
+            std::clamp(static_cast<double>(document.getProperty("variationAmount", 35.0)),
+                       0.0, 100.0),
+            juce::dontSendNotification);
+        const auto seed = std::clamp<juce::int64>(
+            static_cast<juce::int64>(document.getProperty("seed", 1)),
+            0, std::numeric_limits<std::uint32_t>::max());
+        safeThis->seedText.setText(juce::String(static_cast<std::uint32_t>(seed)),
+                                   juce::dontSendNotification);
+        safeThis->lockedParameters.setText(
+            document.getProperty("lockedParameters", "master, polyphony").toString(),
+            juce::dontSendNotification);
+        for (std::size_t index = 0; index < sectionKeys.size(); ++index) {
+            const auto locked = sectionLocks.isObject()
+                                    ? static_cast<bool>(sectionLocks.getProperty(
+                                          sectionKeys[index], false))
+                                    : false;
+            safeThis->sectionLockButtons[index].setToggleState(
+                locked, juce::dontSendNotification);
+        }
+
+        safeThis->variations.clear();
+        safeThis->variationSeeds.clear();
+        safeThis->variationSelector.clear(juce::dontSendNotification);
+        safeThis->statusLabel.setText(
+            pas1::ui::utf8String("Рецепт загружен и готов к прослушиванию. Текущий звук не изменён."),
+            juce::dontSendNotification);
     });
 }
 
 void GeneratorPanel::showMessage(const juce::String& message) {
     juce::AlertWindow::showMessageBoxAsync(
-        juce::MessageBoxIconType::WarningIcon, "PAS 1 Generator", message, "OK", this);
+        juce::MessageBoxIconType::WarningIcon, pas1::ui::utf8String("Генератор PAS 1"),
+        message, pas1::ui::utf8String("ОК"), this);
 }
 
 std::vector<std::string> GeneratorPanel::getLockedParameters() const {
@@ -434,6 +945,23 @@ std::vector<std::string> GeneratorPanel::getLockedParameters() const {
         token = token.trim();
         if (token.isNotEmpty())
             result.push_back(token.toStdString());
+    }
+    constexpr std::array<pas1::generation::VariationSection, 4> sections{
+        pas1::generation::VariationSection::oscillators,
+        pas1::generation::VariationSection::filterAndEnvelope,
+        pas1::generation::VariationSection::modulation,
+        pas1::generation::VariationSection::effects};
+    const auto parameters = captureParameters();
+    for (std::size_t sectionIndex = 0; sectionIndex < sectionLockButtons.size(); ++sectionIndex) {
+        if (!sectionLockButtons[sectionIndex].getToggleState())
+            continue;
+        for (const auto& parameter : parameters) {
+            if (!pas1::generation::SoundGenerator::belongsToSection(
+                    parameter.id, sections[sectionIndex]))
+                continue;
+            if (std::find(result.begin(), result.end(), parameter.id) == result.end())
+                result.push_back(parameter.id);
+        }
     }
     return result;
 }
@@ -456,6 +984,7 @@ pas1::generation::VariationMode GeneratorPanel::getVariationMode() const {
 }
 
 std::uint32_t GeneratorPanel::getSeed() const {
-    const auto parsed = static_cast<std::uint32_t>(seedText.getText().getIntValue());
-    return parsed;
+    const auto parsed = seedText.getText().getLargeIntValue();
+    return static_cast<std::uint32_t>(
+        std::clamp<juce::int64>(parsed, 0, std::numeric_limits<std::uint32_t>::max()));
 }

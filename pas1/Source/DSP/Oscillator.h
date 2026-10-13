@@ -6,7 +6,16 @@ enum class Waveform {
     sine = 0,
     triangle,
     saw,
-    square
+    square,
+    pulse,
+    reverseSaw,
+    organ,
+    hollow,
+    formant,
+    bell,
+    metallic,
+    clipped,
+    count
 };
 
 class Oscillator {

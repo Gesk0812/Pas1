@@ -3,11 +3,11 @@
 #include <algorithm>
 
 namespace {
-const juce::Colour background{0xff1a1c21};
-const juce::Colour accent{0xffcf7bff};
-const juce::Colour text{0xfff4f0f7};
-const juce::Colour muted{0xffaaa4b1};
-const juce::Colour border{0xff393641};
+const juce::Colour background{0xff302015};
+const juce::Colour accent{0xffd8b36a};
+const juce::Colour text{0xfff4e8cf};
+const juce::Colour muted{0xffbba483};
+const juce::Colour border{0xff745332};
 
 void styleButton(juce::TextButton& button) {
     button.setColour(juce::TextButton::buttonColourId, background);
@@ -28,14 +28,14 @@ juce::Rectangle<float> MorphPad::padArea() const {
 
 void MorphPad::paint(juce::Graphics& graphics) {
     const auto area = padArea();
-    juce::ColourGradient gradient{juce::Colour{0xff342441}, area.getX(), area.getY(),
-                                  juce::Colour{0xff242a37}, area.getRight(), area.getBottom(), false};
+    juce::ColourGradient gradient{juce::Colour{0xff6b4527}, area.getX(), area.getY(),
+                                  juce::Colour{0xff29180f}, area.getRight(), area.getBottom(), false};
     graphics.setGradientFill(gradient);
     graphics.fillRoundedRectangle(area, 10.0f);
     graphics.setColour(border);
     graphics.drawRoundedRectangle(area, 10.0f, 1.0f);
 
-    graphics.setColour(juce::Colour{0x55ffffff});
+    graphics.setColour(juce::Colour{0x55f4e8cf});
     for (int division = 1; division < 4; ++division) {
         const auto x = area.getX() + area.getWidth() * static_cast<float>(division) / 4.0f;
         const auto y = area.getY() + area.getHeight() * static_cast<float>(division) / 4.0f;
@@ -45,20 +45,20 @@ void MorphPad::paint(juce::Graphics& graphics) {
 
     graphics.setFont(juce::FontOptions{12.0f, juce::Font::bold});
     graphics.setColour(text);
-    graphics.drawText("C · GLASS", area.getX() + 8.0f, area.getY() + 5.0f, 100.0f, 18.0f,
+    graphics.drawText(pas1::ui::utf8String("C · СТЕКЛО"), area.getX() + 8.0f, area.getY() + 5.0f, 100.0f, 18.0f,
                       juce::Justification::topLeft);
-    graphics.drawText("D · PAD", area.getRight() - 108.0f, area.getY() + 5.0f, 100.0f, 18.0f,
+    graphics.drawText(pas1::ui::utf8String("D · ПЭД"), area.getRight() - 108.0f, area.getY() + 5.0f, 100.0f, 18.0f,
                       juce::Justification::topRight);
-    graphics.drawText("A · SOFT BASS", area.getX() + 8.0f, area.getBottom() - 23.0f, 118.0f, 18.0f,
+    graphics.drawText(pas1::ui::utf8String("A · МЯГКИЙ БАС"), area.getX() + 8.0f, area.getBottom() - 23.0f, 118.0f, 18.0f,
                       juce::Justification::bottomLeft);
-    graphics.drawText("B · DIGITAL BASS", area.getRight() - 138.0f, area.getBottom() - 23.0f, 130.0f, 18.0f,
+    graphics.drawText(pas1::ui::utf8String("B · ЦИФРОВОЙ БАС"), area.getRight() - 138.0f, area.getBottom() - 23.0f, 130.0f, 18.0f,
                       juce::Justification::bottomRight);
 
     const auto x = processor_.parameters.getRawParameterValue("morphx")->load();
     const auto y = processor_.parameters.getRawParameterValue("morphy")->load();
     const juce::Point<float> position{area.getX() + std::clamp(x, 0.0f, 1.0f) * area.getWidth(),
                                       area.getBottom() - std::clamp(y, 0.0f, 1.0f) * area.getHeight()};
-    graphics.setColour(juce::Colour{0x55cf7bff});
+    graphics.setColour(juce::Colour{0x55d8b36a});
     graphics.fillEllipse(position.x - 17.0f, position.y - 17.0f, 34.0f, 34.0f);
     graphics.setColour(accent);
     graphics.fillEllipse(position.x - 8.0f, position.y - 8.0f, 16.0f, 16.0f);
@@ -104,15 +104,15 @@ void MorphPad::updatePosition(juce::Point<float> position) {
 MorphPanel::MorphPanel(Pas1AudioProcessor& processor) : processor_(processor), pad(processor) {
     addAndMakeVisible(pad);
     const std::array<juce::String, 4> names{
-        "CAPTURE A · SOFT BASS", "CAPTURE B · DIGITAL BASS",
-        "CAPTURE C · GLASS", "CAPTURE D · PAD"};
+        pas1::ui::utf8String("СОХРАНИТЬ A · БАС"), pas1::ui::utf8String("СОХРАНИТЬ B · БАС"),
+        pas1::ui::utf8String("СОХРАНИТЬ C · СТЕКЛО"), pas1::ui::utf8String("СОХРАНИТЬ D · ПЭД")};
     for (int index = 0; index < static_cast<int>(captureButtons.size()); ++index) {
         auto& button = captureButtons[static_cast<std::size_t>(index)];
         button.setButtonText(names[static_cast<std::size_t>(index)]);
         styleButton(button);
         button.onClick = [this, index] {
             processor_.captureMorphCorner(index);
-            status.setText("Captured corner " + juce::String(index + 1),
+            status.setText(pas1::ui::utf8String("Сохранён звук в углу ") + juce::String(index + 1),
                            juce::dontSendNotification);
         };
         addAndMakeVisible(button);
@@ -120,7 +120,7 @@ MorphPanel::MorphPanel(Pas1AudioProcessor& processor) : processor_(processor), p
     styleButton(factoryButton);
     factoryButton.onClick = [this] {
         processor_.captureFactoryMorphCorners();
-        status.setText("Loaded factory corners: soft bass, digital bass, glass keys, and slow pad.",
+        status.setText(pas1::ui::utf8String("Загружены заводские углы: мягкий бас, цифровой бас, стекло и пэд."),
                        juce::dontSendNotification);
     };
     addAndMakeVisible(factoryButton);
@@ -128,7 +128,9 @@ MorphPanel::MorphPanel(Pas1AudioProcessor& processor) : processor_(processor), p
     randomizeButton.onClick = [this] {
         const auto seed = static_cast<std::uint32_t>(juce::Random::getSystemRandom().nextInt());
         processor_.randomizeMorphCorners(seed);
-        status.setText("Corner variations generated. The random seed is " + juce::String(static_cast<juce::int64>(seed)) + ".",
+        status.setText(pas1::ui::utf8String("Созданы вариации углов. Зерно: ")
+                           + juce::String(static_cast<juce::int64>(seed))
+                           + pas1::ui::utf8String("."),
                        juce::dontSendNotification);
     };
     addAndMakeVisible(randomizeButton);
@@ -148,8 +150,8 @@ MorphPanel::MorphPanel(Pas1AudioProcessor& processor) : processor_(processor), p
     }
     status.setColour(juce::Label::textColourId, muted);
     status.setText(processor_.isMorphConfigured()
-                       ? "Morph Matrix active. X/Y are host-automatable, including with this window closed."
-                       : "Capture or load the four corners. X/Y are host-automatable, including with this window closed.",
+                        ? pas1::ui::utf8String("Матрица морфинга активна. Параметры X/Y доступны для автоматизации и при закрытом окне.")
+                        : pas1::ui::utf8String("Сохраните или загрузите четыре угловых звука. X/Y доступны для автоматизации в хосте."),
                    juce::dontSendNotification);
     addAndMakeVisible(status);
 }

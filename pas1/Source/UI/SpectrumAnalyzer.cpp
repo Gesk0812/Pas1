@@ -1,13 +1,15 @@
 #include "SpectrumAnalyzer.h"
+#include "Utf8Text.h"
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace {
-const juce::Colour analyzerBackground{0xff22242a};
-const juce::Colour analyzerGrid{0xff393641};
-const juce::Colour analyzerAccent{0xffcf7bff};
-const juce::Colour analyzerText{0xffaaa4b1};
+const juce::Colour analyzerBackground{0xff24160f};
+const juce::Colour analyzerGrid{0xff745332};
+const juce::Colour analyzerAccent{0xffd8b36a};
+const juce::Colour analyzerText{0xffbba483};
 }
 
 void SpectrumAnalyzer::update() {
@@ -57,11 +59,22 @@ void SpectrumAnalyzer::paint(juce::Graphics& graphics) {
 
     graphics.setColour(analyzerText);
     graphics.setFont(juce::FontOptions{9.0f, juce::Font::bold});
-    graphics.drawText("OUTPUT SPECTRUM", 8, 4, 130, 12, juce::Justification::centredLeft);
+    graphics.drawText(pas1::ui::utf8String("СПЕКТР ВЫХОДА"), 8, 4, 130, 12,
+                      juce::Justification::centredLeft);
 
-    const auto plot = getLocalBounds().reduced(8).withTrimmedTop(16);
+    const auto plot = getLocalBounds().reduced(8)
+                          .withTrimmedTop(16)
+                          .withTrimmedLeft(24)
+                          .withTrimmedBottom(12);
     if (plot.getWidth() < 2 || plot.getHeight() < 2)
         return;
+
+    const auto sampleRate = std::max(8000.0f,
+        processor_.visualSampleRate.load(std::memory_order_relaxed));
+    const auto minFrequency = 20.0f;
+    const auto maxFrequency = std::max(minFrequency * 2.0f,
+                                       std::min(20000.0f, sampleRate * 0.48f));
+    const auto logRange = std::log(maxFrequency / minFrequency);
 
     graphics.setColour(analyzerGrid);
     for (int line = 1; line <= 2; ++line) {
@@ -76,12 +89,30 @@ void SpectrumAnalyzer::paint(juce::Graphics& graphics) {
                                   static_cast<float>(plot.getBottom()));
     }
 
-    const auto sampleRate = std::max(8000.0f,
-        processor_.visualSampleRate.load(std::memory_order_relaxed));
-    const auto minFrequency = 20.0f;
-    const auto maxFrequency = std::max(minFrequency * 2.0f,
-                                       std::min(20000.0f, sampleRate * 0.48f));
-    const auto logRange = std::log(maxFrequency / minFrequency);
+    graphics.setFont(juce::FontOptions{8.0f});
+    for (const auto [level, label] : {std::pair{0.0f, "0"},
+                                      std::pair{-36.0f, "-36"},
+                                      std::pair{-72.0f, "-72"}}) {
+        const auto fraction = (level + 72.0f) / 72.0f;
+        const auto y = static_cast<float>(plot.getBottom())
+                       - fraction * static_cast<float>(plot.getHeight());
+        graphics.setColour(analyzerText);
+        graphics.drawText(label, 0, juce::roundToInt(y - 5.0f), 21, 10,
+                          juce::Justification::centredRight);
+    }
+
+    for (const auto [frequency, label] : {std::pair{20.0f, "20"},
+                                          std::pair{1000.0f, "1k"},
+                                          std::pair{20000.0f, "20k"}}) {
+        const auto boundedFrequency = std::clamp(frequency, minFrequency, maxFrequency);
+        const auto fraction = std::log(boundedFrequency / minFrequency) / logRange;
+        const auto x = plot.getX() + juce::roundToInt(
+            static_cast<float>(plot.getWidth()) * fraction);
+        graphics.setColour(analyzerText);
+        graphics.drawText(label, x - 18, plot.getBottom() + 1, 36, 10,
+                          juce::Justification::centred);
+    }
+
     juce::Path spectrum;
     for (int x = 0; x < plot.getWidth(); ++x) {
         const auto position = static_cast<float>(x)
