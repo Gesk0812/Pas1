@@ -546,8 +546,7 @@ std::vector<ParameterValue> SoundGenerator::createRecipe(
     if (has(SoundTrait::space) || has(SoundTrait::reverb)
         || has(SoundTrait::longRelease))
         space = std::max(space, 0.78f);
-    if (has(SoundTrait::aggressive) || has(SoundTrait::brass)
-        || has(SoundTrait::distortion))
+    if (intent.aggressive || has(SoundTrait::brass) || has(SoundTrait::distortion))
         aggression = std::max(aggression, 0.68f);
     if (intent.pad) {
         density = std::max(density, 0.62f);
@@ -714,7 +713,7 @@ std::vector<ParameterValue> SoundGenerator::createRecipe(
         setRaw(result, "lfo1rate", 5.2f);
     }
     if (has(SoundTrait::tremolo)) {
-        setRaw(result, "lfo1target", 3.0f);
+        setRaw(result, "lfo1target", 4.0f);
         setRaw(result, "lfo1amount", 0.36f);
         setRaw(result, "lfo1rate", 4.2f);
         setRaw(result, "osc2level", 0.42f);

@@ -24,8 +24,11 @@ float parameterValue(Pas1AudioProcessor& processor, const char* id, float fallba
 }
 
 juce::String waveformName(int waveform) {
-    constexpr std::array<const char*, 4> names{"СИНУС", "ТРЕУГОЛЬНИК", "ПИЛА", "ИМПУЛЬС"};
-    return pas1::ui::utf8String(names[static_cast<std::size_t>(std::clamp(waveform, 0, 3))]);
+    constexpr std::array<const char*, 12> names{
+        "СИНУС", "ТРЕУГОЛЬНИК", "ПИЛА", "ПРЯМОУГОЛЬНИК", "ИМПУЛЬС", "ОБРАТНАЯ ПИЛА",
+        "ОРГАН", "ПОЛЫЙ", "ФОРМАНТ", "КОЛОКОЛ", "МЕТАЛЛ", "МЯГКИЙ КЛИППИНГ"};
+    return pas1::ui::utf8String(
+        names[static_cast<std::size_t>(std::clamp(waveform, 0, 11))]);
 }
 
 juce::String filterName(int type) {
@@ -44,7 +47,8 @@ void OscillatorWaveformGraph::paint(juce::Graphics& graphics) {
     graphics.fillRoundedRectangle(bounds, 8.0f);
 
     const auto waveform = std::clamp(
-        juce::roundToInt(parameterValue(processor_, "waveform", 0.0f)), 0, 3);
+        juce::roundToInt(parameterValue(processor_, "waveform", 0.0f)), 0,
+        pas1::dsp::WavetableOscillator::waveformCount - 1);
     const auto scan = std::clamp(parameterValue(processor_, "wavetablescan", 0.0f), 0.0f, 1.0f);
     const auto level = std::clamp(parameterValue(processor_, "osc1level", 1.0f), 0.0f, 1.0f);
 

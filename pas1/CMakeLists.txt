@@ -27,6 +27,7 @@ if(PAS1_BUILD_TESTS)
         Source/DSP/Portamento.cpp
         Source/DSP/SoundDNA.cpp
         Source/Generation/SoundGenerator.cpp
+        Source/Generation/SoundTraitDictionary.cpp
     )
     target_include_directories(PAS1Tests PRIVATE Source)
     if(MSVC)
@@ -89,6 +90,7 @@ if(PAS1_BUILD_PLUGIN)
         Source/Presets/PresetsPanel.cpp
         Source/UI/ParameterGraphs.cpp
         Source/Generation/SoundGenerator.cpp
+        Source/Generation/SoundTraitDictionary.cpp
         Source/Generation/GeneratorPanel.cpp
         Source/Generation/MorphPanel.cpp
         Source/Generation/ModulationPanel.cpp

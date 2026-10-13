@@ -33,6 +33,7 @@ private:
     void undo();
     void redo();
     void showBeforeAfter();
+    void showWordDictionary();
     void keepCurrent();
     void revert();
     void saveRecipe();
@@ -46,6 +47,7 @@ private:
 
     Pas1AudioProcessor& processor_;
     juce::TextEditor recipeText;
+    juce::TextButton dictionaryButton{pas1::ui::utf8String("СЛОВАРЬ 500")};
     juce::ComboBox variationMode;
     juce::Slider variationAmount;
     juce::TextEditor seedText;
@@ -80,6 +82,7 @@ private:
     juce::TextButton loadRecipeButton{pas1::ui::utf8String("ЗАГРУЗИТЬ РЕЦЕПТ")};
     juce::Label statusLabel;
     std::unique_ptr<juce::FileChooser> fileChooser;
+    std::unique_ptr<juce::DocumentWindow> dictionaryWindow;
     juce::ValueTree originalState;
     juce::ValueTree afterState;
     std::vector<juce::ValueTree> variations;

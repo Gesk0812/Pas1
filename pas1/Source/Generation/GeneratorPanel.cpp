@@ -1,11 +1,15 @@
 #include "GeneratorPanel.h"
+#include "Generation/SoundTraitDictionary.h"
 #include "UI/Utf8Text.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <functional>
 #include <iterator>
 #include <limits>
+#include <string_view>
+#include <utility>
 
 namespace {
 const juce::Colour panelBackground{0xff302015};
@@ -38,6 +42,175 @@ void setupButton(juce::TextButton& button) {
     button.setColour(juce::TextButton::textColourOffId, panelText);
     button.setColour(juce::TextButton::textColourOnId, panelAccent);
 }
+
+juce::String dictionaryString(std::string_view text) {
+    return juce::String::fromUTF8(text.data(), static_cast<int>(text.size()));
+}
+
+class SoundTraitDictionaryContents final : public juce::Component,
+                                           private juce::ListBoxModel {
+public:
+    explicit SoundTraitDictionaryContents(std::function<void(std::string)> insertWord)
+        : insertWord_(std::move(insertWord)), list_("sound-traits", this) {
+        search_.setTextToShowWhenEmpty(
+            pas1::ui::utf8String("Поиск по словам и описаниям…"), panelMuted);
+        search_.setColour(juce::TextEditor::backgroundColourId, panelBackground);
+        search_.setColour(juce::TextEditor::textColourId, panelText);
+        search_.setColour(juce::TextEditor::outlineColourId, juce::Colour{0xff745332});
+        search_.onTextChange = [this] { refreshRows(); };
+        addAndMakeVisible(search_);
+
+        count_.setColour(juce::Label::textColourId, panelMuted);
+        count_.setJustificationType(juce::Justification::centredLeft);
+        addAndMakeVisible(count_);
+
+        list_.setRowHeight(28);
+        list_.setColour(juce::ListBox::backgroundColourId, panelBackground);
+        list_.setColour(juce::ListBox::outlineColourId, juce::Colour{0xff745332});
+        list_.setOutlineThickness(1);
+        list_.setMultipleSelectionEnabled(false);
+        addAndMakeVisible(list_);
+
+        details_.setMultiLine(true);
+        details_.setReadOnly(true);
+        details_.setCaretVisible(false);
+        details_.setScrollbarsShown(true);
+        details_.setColour(juce::TextEditor::backgroundColourId, panelBackground);
+        details_.setColour(juce::TextEditor::textColourId, panelText);
+        details_.setColour(juce::TextEditor::outlineColourId, juce::Colour{0xff745332});
+        addAndMakeVisible(details_);
+
+        insertButton_.setButtonText(pas1::ui::utf8String("ВСТАВИТЬ СЛОВО"));
+        setupButton(insertButton_);
+        insertButton_.onClick = [this] { insertSelected(); };
+        addAndMakeVisible(insertButton_);
+        refreshRows();
+    }
+
+    void resized() override {
+        auto bounds = getLocalBounds().reduced(14);
+        search_.setBounds(bounds.removeFromTop(34));
+        count_.setBounds(bounds.removeFromTop(26));
+        auto lower = bounds;
+        auto detailsArea = lower.removeFromBottom(118);
+        lower.removeFromBottom(8);
+        list_.setBounds(lower);
+        details_.setBounds(detailsArea.removeFromLeft(detailsArea.getWidth() - 146));
+        detailsArea.removeFromLeft(8);
+        insertButton_.setBounds(detailsArea.removeFromTop(38));
+    }
+
+private:
+    int getNumRows() override {
+        return static_cast<int>(visibleRows_.size());
+    }
+
+    void paintListBoxItem(int rowNumber, juce::Graphics& graphics, int width,
+                          int height, bool rowIsSelected) override {
+        if (rowNumber < 0 || rowNumber >= static_cast<int>(visibleRows_.size()))
+            return;
+
+        const auto& entry = pas1::generation::soundTraitDictionary()[
+            static_cast<std::size_t>(visibleRows_[static_cast<std::size_t>(rowNumber)])];
+        if (rowIsSelected)
+            graphics.fillAll(juce::Colour{0xff513522});
+        graphics.setColour(rowIsSelected ? panelText : panelMuted);
+        graphics.setFont(juce::FontOptions{13.0f});
+        const auto label = dictionaryString(entry.term) + "  —  "
+                           + dictionaryString(pas1::generation::soundTraitLabel(entry.trait));
+        graphics.drawText(label, 9, 0, width - 18, height,
+                          juce::Justification::centredLeft, true);
+    }
+
+    void selectedRowsChanged(int rowNumber) override {
+        if (rowNumber >= 0 && rowNumber < static_cast<int>(visibleRows_.size()))
+            updateDetails(rowNumber);
+    }
+
+    void listBoxItemDoubleClicked(int rowNumber, const juce::MouseEvent&) override {
+        selectAndInsert(rowNumber);
+    }
+
+    void refreshRows() {
+        visibleRows_.clear();
+        const auto query = search_.getText().trim();
+        const auto& entries = pas1::generation::soundTraitDictionary();
+        for (std::size_t index = 0; index < entries.size(); ++index) {
+            const auto& entry = entries[index];
+            const auto searchable = dictionaryString(entry.term) + " "
+                                    + dictionaryString(
+                                        pas1::generation::soundTraitLabel(entry.trait))
+                                    + " "
+                                    + dictionaryString(
+                                        pas1::generation::soundTraitDescription(entry.trait));
+            if (query.isEmpty() || searchable.containsIgnoreCase(query))
+                visibleRows_.push_back(static_cast<int>(index));
+        }
+        list_.updateContent();
+        count_.setText(juce::String(visibleRows_.size())
+                           + pas1::ui::utf8String(" из ")
+                           + juce::String(entries.size())
+                           + pas1::ui::utf8String(" слов"),
+                       juce::dontSendNotification);
+        if (!visibleRows_.empty())
+            list_.selectRow(0);
+        else
+            details_.clear();
+    }
+
+    void updateDetails(int rowNumber) {
+        const auto& entry = pas1::generation::soundTraitDictionary()[
+            static_cast<std::size_t>(visibleRows_[static_cast<std::size_t>(rowNumber)])];
+        details_.setText(dictionaryString(entry.term) + " — "
+                             + dictionaryString(
+                                 pas1::generation::soundTraitLabel(entry.trait))
+                             + "\n"
+                             + dictionaryString(
+                                 pas1::generation::soundTraitDescription(entry.trait)),
+                         juce::dontSendNotification);
+    }
+
+    void selectAndInsert(int rowNumber) {
+        if (rowNumber < 0 || rowNumber >= static_cast<int>(visibleRows_.size()))
+            return;
+        list_.selectRow(rowNumber);
+        const auto& entry = pas1::generation::soundTraitDictionary()[
+            static_cast<std::size_t>(visibleRows_[static_cast<std::size_t>(rowNumber)])];
+        insertWord_(std::string{entry.term});
+    }
+
+    void insertSelected() {
+        const auto row = list_.getSelectedRow();
+        selectAndInsert(row);
+    }
+
+    std::function<void(std::string)> insertWord_;
+    juce::TextEditor search_;
+    juce::Label count_;
+    juce::ListBox list_;
+    juce::TextEditor details_;
+    juce::TextButton insertButton_;
+    std::vector<int> visibleRows_;
+};
+
+class SoundTraitDictionaryWindow final : public juce::DocumentWindow {
+public:
+    explicit SoundTraitDictionaryWindow(std::function<void(std::string)> insertWord)
+        : juce::DocumentWindow(pas1::ui::utf8String("Словарь звуковых признаков — 500 слов"),
+                               panelBackground, juce::DocumentWindow::closeButton) {
+        setUsingNativeTitleBar(false);
+        setResizable(true, true);
+        setContentOwned(new SoundTraitDictionaryContents(std::move(insertWord)), true);
+        setSize(760, 590);
+        setResizeLimits(520, 400, 1400, 1100);
+        addToDesktop(0);
+        centreWithSize(getWidth(), getHeight());
+    }
+
+    void closeButtonPressed() override {
+        setVisible(false);
+    }
+};
 } // namespace
 
 GeneratorPanel::GeneratorPanel(Pas1AudioProcessor& processor) : processor_(processor) {
@@ -53,6 +226,11 @@ GeneratorPanel::GeneratorPanel(Pas1AudioProcessor& processor) : processor_(proce
         "Генератор понимает описания тембра и характера на русском и английском. После ввода нажмите «РЕЦЕПТ»: звук сначала предварительно прослушивается."));
     recipeText.onTextChange = [this] { updateRecipeExplanation(); };
     addAndMakeVisible(recipeText);
+    setupButton(dictionaryButton);
+    dictionaryButton.setTooltip(pas1::ui::utf8String(
+        "Открыть поиск по 500 русским и английским словам. Выберите слово и вставьте его в описание."));
+    dictionaryButton.onClick = [this] { showWordDictionary(); };
+    addAndMakeVisible(dictionaryButton);
 
     for (std::size_t index = 0; index < displayedVariationModes.size(); ++index)
         variationMode.addItem(pas1::ui::utf8String(displayedVariationModes[index]),
@@ -226,7 +404,8 @@ void GeneratorPanel::paint(juce::Graphics& graphics) {
 
 void GeneratorPanel::resized() {
     const auto width = getWidth();
-    recipeText.setBounds(12, 14, width - 24, 58);
+    recipeText.setBounds(12, 14, width - 166, 58);
+    dictionaryButton.setBounds(width - 148, 14, 136, 58);
     interpretationLabel.setBounds(14, 74, width - 28, 40);
 
     const auto cellWidth = (width - 40) / 3;
@@ -277,6 +456,25 @@ void GeneratorPanel::resized() {
         secondRow[index]->setBounds(12 + static_cast<int>(index) * (secondWidth + 8),
                                     buttonY + 38, secondWidth, 30);
     statusLabel.setBounds(14, buttonY + 74, width - 28, 42);
+}
+
+void GeneratorPanel::showWordDictionary() {
+    if (!dictionaryWindow) {
+        juce::Component::SafePointer<GeneratorPanel> safeThis(this);
+        dictionaryWindow = std::make_unique<SoundTraitDictionaryWindow>(
+            [safeThis](std::string term) {
+                if (safeThis == nullptr)
+                    return;
+                auto description = safeThis->recipeText.getText().trim();
+                if (description.isNotEmpty())
+                    description += " ";
+                description += dictionaryString(term);
+                safeThis->recipeText.setText(description, juce::sendNotification);
+                safeThis->recipeText.grabKeyboardFocus();
+            });
+    }
+    dictionaryWindow->setVisible(true);
+    dictionaryWindow->toFront(true);
 }
 
 GeneratorPanel::ParameterList GeneratorPanel::captureParameters() const {

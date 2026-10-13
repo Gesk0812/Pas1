@@ -269,11 +269,13 @@ public:
         updateEnvelopeParameters();
         const auto selectedWave = static_cast<int>(std::round(waveform_->load()));
         const auto waveform = static_cast<pas1::dsp::Waveform>(
-            std::clamp(selectedWave, 0, 3));
+            std::clamp(selectedWave, 0, static_cast<int>(pas1::dsp::Waveform::count) - 1));
         const auto osc2Wave = static_cast<pas1::dsp::Waveform>(
-            std::clamp(static_cast<int>(std::round(engineParameters_.oscillator2Waveform->load())), 0, 3));
+            std::clamp(static_cast<int>(std::round(engineParameters_.oscillator2Waveform->load())),
+                       0, static_cast<int>(pas1::dsp::Waveform::count) - 1));
         const auto osc3Wave = static_cast<pas1::dsp::Waveform>(
-            std::clamp(static_cast<int>(std::round(engineParameters_.oscillator3Waveform->load())), 0, 3));
+            std::clamp(static_cast<int>(std::round(engineParameters_.oscillator3Waveform->load())),
+                       0, static_cast<int>(pas1::dsp::Waveform::count) - 1));
         const auto filterType = static_cast<pas1::dsp::FilterType>(
             std::clamp(static_cast<int>(std::round(engineParameters_.filterType->load())), 0, 3));
         const auto baseCutoff = engineParameters_.filterCutoff->load();
@@ -328,7 +330,7 @@ public:
                 source.rate->load(),
                 source.amount->load(),
                 std::clamp(static_cast<int>(std::round(source.waveform->load())), 0, 5),
-                std::clamp(static_cast<int>(std::round(source.destination->load())), 0, 3),
+                std::clamp(static_cast<int>(std::round(source.destination->load())), 0, 4),
                 source.sync->load() >= 0.5f,
                 std::clamp(static_cast<int>(std::round(source.division->load())), 0, 4),
                 source.phase->load(),
@@ -360,6 +362,7 @@ public:
             auto pitchModulation = std::sin(vibratoPhase_) * modWheel_ * 0.5f;
             auto cutoffOctaves = 0.0f;
             auto oscillator2Level = osc2BaseLevel;
+            auto amplitudeLfoGain = 1.0f;
             pas1::dsp::ModulationMatrix::SourceValues modulationSources{};
             const auto amplitudeEnvelopeValue = envelope_.nextSample();
             const auto filterEnvelopeValue = filterEnvelope_.nextSample();
@@ -402,6 +405,9 @@ public:
                         break;
                     case 3:
                         oscillator2Level += modulation;
+                        break;
+                    case 4:
+                        amplitudeLfoGain = std::clamp(1.0f + modulation, 0.0f, 2.0f);
                         break;
                     default:
                         break;
@@ -520,7 +526,8 @@ public:
                 const auto drive = 1.0f + std::clamp(filterDrive, 0.0f, 1.0f) * 9.0f;
                 signal = std::tanh(signal * drive) / std::tanh(drive);
             }
-            auto value = filter_.processSample(signal) * amplitudeEnvelopeValue * velocity_;
+            auto value = filter_.processSample(signal) * amplitudeEnvelopeValue * velocity_
+                         * amplitudeLfoGain;
             if (!std::isfinite(value))
                 value = 0.0f;
 
@@ -908,7 +915,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
     layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterChoice>>(
         juce::ParameterID{"waveform", 1},
         "Форма волны",
-        pas1::ui::utf8StringArray({"Синус", "Треугольник", "Пила", "Прямоугольник"}),
+        pas1::ui::utf8StringArray({"Синус", "Треугольник", "Пила", "Прямоугольник",
+                                   "Импульс", "Обратная пила", "Орган", "Полый",
+                                   "Формант", "Колокол", "Металл", "Мягкий клиппинг"}),
         2));
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"osc1level", 1}, "Уровень осц. 1",
@@ -933,7 +942,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
         pas1::ui::utf8String(" центов")));
     layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterChoice>>(
         juce::ParameterID{"osc2wave", 1}, "Форма волны осц. 2",
-        pas1::ui::utf8StringArray({"Синус", "Треугольник", "Пила", "Прямоугольник"}), 0));
+        pas1::ui::utf8StringArray({"Синус", "Треугольник", "Пила", "Прямоугольник",
+                                   "Импульс", "Обратная пила", "Орган", "Полый",
+                                   "Формант", "Колокол", "Металл", "Мягкий клиппинг"}), 0));
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"osc2level", 1}, "Уровень осц. 2",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.2f));
@@ -954,7 +965,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
     layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterChoice>>(
         juce::ParameterID{"osc3wave", 1}, "Форма волны осц. 3",
-        pas1::ui::utf8StringArray({"Синус", "Треугольник", "Пила", "Прямоугольник"}), 1));
+        pas1::ui::utf8StringArray({"Синус", "Треугольник", "Пила", "Прямоугольник",
+                                   "Импульс", "Обратная пила", "Орган", "Полый",
+                                   "Формант", "Колокол", "Металл", "Мягкий клиппинг"}), 1));
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"osc3level", 1}, "Уровень осц. 3",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f));
@@ -1056,7 +1069,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
             pas1::ui::utf8StringArray({"Синус", "Треугольник", "Пила", "Прямоугольник", "Выборка и удержание", "Плавный случайный"}), 0));
         layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterChoice>>(
             juce::ParameterID{prefix + "target", 1}, pas1::ui::utf8String("НЧ-генератор ") + juce::String(index + 1) + pas1::ui::utf8String(" — цель"),
-            pas1::ui::utf8StringArray({"Выкл.", "Высота тона", "Частота среза фильтра", "Уровень осц. 2"}), 0));
+            pas1::ui::utf8StringArray({"Выкл.", "Высота тона", "Частота среза фильтра",
+                                       "Уровень осц. 2", "Громкость"}), 0));
     layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterBool>>(
             juce::ParameterID{prefix + "sync", 1}, pas1::ui::utf8String("НЧ-генератор ") + juce::String(index + 1) + pas1::ui::utf8String(" — синхронизация"), false));
         layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterChoice>>(

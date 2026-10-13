@@ -1,4 +1,5 @@
 #include "PresetManager.h"
+#include "PresetLoudness.h"
 #include "UI/Utf8Text.h"
 
 #include "../DSP/StateVariableFilter.h"
@@ -589,7 +590,10 @@ std::vector<std::pair<juce::String, float>> PresetManager::getBuiltInPresetValue
     result.reserve(preset.settingCount);
     for (std::size_t settingIndex = 0; settingIndex < preset.settingCount; ++settingIndex) {
         const auto& setting = preset.settings[settingIndex];
-        result.emplace_back(setting.id, setting.value);
+        auto value = setting.value;
+        if (juce::String{setting.id} == "master")
+            value = pas1::presets::compensateFactoryMaster(value);
+        result.emplace_back(setting.id, value);
     }
     return result;
 }
@@ -621,10 +625,12 @@ bool PresetManager::loadBuiltInPreset(int index) {
     for (std::size_t settingIndex = 0; settingIndex < preset.settingCount; ++settingIndex) {
         const auto& setting = preset.settings[settingIndex];
         if (auto* parameter = parameters_.getParameter(setting.id)) {
-            const auto value = juce::String{setting.id} == "filterresonance"
-                                   ? pas1::dsp::StateVariableFilter::migrateLegacyResonance(
-                                         setting.value)
-                                   : setting.value;
+            auto value = juce::String{setting.id} == "filterresonance"
+                             ? pas1::dsp::StateVariableFilter::migrateLegacyResonance(
+                                   setting.value)
+                             : setting.value;
+            if (juce::String{setting.id} == "master")
+                value = pas1::presets::compensateFactoryMaster(value);
             parameter->setValueNotifyingHost(parameter->convertTo0to1(value));
         }
     }

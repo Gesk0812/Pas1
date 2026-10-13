@@ -12,6 +12,8 @@
 #include "DSP/StateVariableFilter.h"
 #include "DSP/WavetableOscillator.h"
 #include "Generation/SoundGenerator.h"
+#include "Generation/SoundTraitDictionary.h"
+#include "Presets/PresetLoudness.h"
 
 #include <algorithm>
 #include <array>
@@ -19,6 +21,8 @@
 #include <cstdlib>
 #include <iostream>
 #include <limits>
+#include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace {
@@ -34,18 +38,35 @@ void expect(bool condition, const char* message) {
 void testOscillator() {
     constexpr float sampleRate = 48000.0f;
     constexpr float frequency = 440.0f;
-    for (const auto waveform : {pas1::dsp::Waveform::sine, pas1::dsp::Waveform::triangle,
-                                pas1::dsp::Waveform::saw, pas1::dsp::Waveform::square}) {
+    std::array<std::array<float, 256>,
+               static_cast<std::size_t>(pas1::dsp::Waveform::count)> signatures{};
+    for (int waveformIndex = 0;
+         waveformIndex < static_cast<int>(pas1::dsp::Waveform::count);
+         ++waveformIndex) {
+        const auto waveform = static_cast<pas1::dsp::Waveform>(waveformIndex);
         pas1::dsp::Oscillator oscillator;
         double energy = 0.0;
         for (int i = 0; i < 48000; ++i) {
-            const auto sample = oscillator.nextSample(frequency, sampleRate, waveform);
+            const auto pulseWidth = waveform == pas1::dsp::Waveform::pulse ? 0.25f : 0.5f;
+            const auto sample = oscillator.nextSample(frequency, sampleRate, waveform,
+                                                      pulseWidth);
             expect(std::isfinite(sample), "oscillator samples must be finite");
             expect(std::abs(sample) <= 1.01f, "oscillator output must stay in range");
             energy += static_cast<double>(sample) * sample;
+            if (i < static_cast<int>(signatures[static_cast<std::size_t>(waveformIndex)].size()))
+                signatures[static_cast<std::size_t>(waveformIndex)]
+                         [static_cast<std::size_t>(i)] = sample;
         }
         expect(energy > 1000.0, "each waveform must generate a non-silent signal");
         expect(oscillator.phase() >= 0.0 && oscillator.phase() < 1.0, "phase must wrap into [0, 1)");
+    }
+    for (std::size_t first = 0; first < signatures.size(); ++first) {
+        for (std::size_t second = first + 1; second < signatures.size(); ++second) {
+            double difference = 0.0;
+            for (std::size_t sample = 0; sample < signatures[first].size(); ++sample)
+                difference += std::abs(signatures[first][sample] - signatures[second][sample]);
+            expect(difference > 0.1, "each oscillator waveform must have a distinct shape");
+        }
     }
 
     pas1::dsp::Oscillator invalidInput;
@@ -190,8 +211,10 @@ void testEnvelope() {
 void testWavetableOscillator() {
     pas1::dsp::WavetableOscillator::initialize();
     constexpr float sampleRate = 48000.0f;
-    for (const auto waveform : {pas1::dsp::Waveform::sine, pas1::dsp::Waveform::triangle,
-                                pas1::dsp::Waveform::saw, pas1::dsp::Waveform::square}) {
+    for (int waveformIndex = 0;
+         waveformIndex < static_cast<int>(pas1::dsp::Waveform::count);
+         ++waveformIndex) {
+        const auto waveform = static_cast<pas1::dsp::Waveform>(waveformIndex);
         pas1::dsp::WavetableOscillator oscillator;
         double energy = 0.0;
         for (int i = 0; i < 48000; ++i) {
@@ -213,8 +236,10 @@ void testWavetableOscillator() {
     }
     expect(scanDifference > 100.0, "wavetable scan must crossfade to a different table");
 
-    for (const auto waveform : {pas1::dsp::Waveform::sine, pas1::dsp::Waveform::triangle,
-                                pas1::dsp::Waveform::saw, pas1::dsp::Waveform::square}) {
+    for (int waveformIndex = 0;
+         waveformIndex < static_cast<int>(pas1::dsp::Waveform::count);
+         ++waveformIndex) {
+        const auto waveform = static_cast<pas1::dsp::Waveform>(waveformIndex);
         pas1::dsp::WavetableOscillator nearNyquist;
         for (int sample = 0; sample < 4096; ++sample) {
             const auto value = nearNyquist.nextSample(
@@ -682,7 +707,7 @@ void testSoundGenerator() {
         {"sublevel", 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0, false},
         {"attack", 0.4f, 0.2f, 0.001f, 5.0f, 0.35f, 0, false},
         {"unisonvoices", 0.0f, 0.0f, 1.0f, 7.0f, 1.0f, 7, true},
-        {"waveform", 0.0f, 0.0f, 0.0f, 3.0f, 1.0f, 4, true},
+        {"waveform", 0.0f, 0.0f, 0.0f, 11.0f, 1.0f, 12, true},
         {"lfo1amount", 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0, false},
         {"chorusmix", 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0, false},
         {"master", 0.5f, 0.5f, 0.0f, 1.0f, 1.0f, 0, false}};
@@ -857,6 +882,88 @@ void testSoundGenerator() {
     for (std::size_t index = 0; index < recipe.size(); ++index)
         expect(zeroAmount[index].normalizedValue == recipe[index].normalizedValue,
                "zero variation amount must preserve the current sound");
+
+    std::vector<ParameterValue> dictionaryBase;
+    const auto addParameter = [&dictionaryBase](const char* id, float minimum = 0.0f,
+                                                 float maximum = 1.0f, int steps = 0,
+                                                 bool discrete = false) {
+        dictionaryBase.push_back(
+            {id, 0.47f, 0.47f, minimum, maximum, 1.0f, steps, discrete});
+    };
+    for (const auto* id : {"filterdrive", "distortionmix", "distortiondrive", "sublevel",
+                           "osc1level", "osc2level", "osc3level", "noiselevel", "fmamount",
+                           "ringamount", "wavetablescan", "lfo1rate", "lfo1amount", "chorusmix",
+                           "chorusdepth", "stereowidth", "reverbmix", "reverbdecay", "delaymix",
+                           "delayfeedback", "attack", "decay", "sustain", "release", "pulsewidth",
+                           "osc2detune", "glidetime", "phasermix", "phaserdepth",
+                           "musicboxmix", "musicboxbrightness", "musicboxdecay",
+                           "musicboxresonance", "musicboxstrike",
+                           "ancientmix", "ancientbrightness", "ancientdecay", "ancientair",
+                           "ancientdetune"})
+        addParameter(id);
+    addParameter("filtercutoff", 20.0f, 20000.0f);
+    addParameter("filterresonance");
+    addParameter("unisonvoices", 1.0f, 7.0f, 7, true);
+    addParameter("unisondetune", 0.0f, 50.0f);
+    addParameter("waveform", 0.0f, 11.0f, 12, true);
+    addParameter("osc2wave", 0.0f, 11.0f, 12, true);
+    addParameter("osc3wave", 0.0f, 11.0f, 12, true);
+    addParameter("osc1octave", -3.0f, 3.0f, 7, true);
+    addParameter("osc2sync", 0.0f, 1.0f, 2, true);
+    addParameter("glideenabled", 0.0f, 1.0f, 2, true);
+    addParameter("lfo1target", 0.0f, 4.0f, 5, true);
+    addParameter("lfo1wave", 0.0f, 5.0f, 6, true);
+    addParameter("chorusenabled", 0.0f, 1.0f, 2, true);
+    addParameter("reverbenabled", 0.0f, 1.0f, 2, true);
+    addParameter("delayenabled", 0.0f, 1.0f, 2, true);
+    addParameter("phaserenabled", 0.0f, 1.0f, 2, true);
+    addParameter("filtertype", 0.0f, 3.0f, 4, true);
+    addParameter("ancientinstrument", 0.0f, 4.0f, 5, true);
+
+    const auto& dictionary = pas1::generation::soundTraitDictionary();
+    expect(dictionary.size() == 500, "the generator dictionary must contain exactly 500 terms");
+    std::unordered_set<std::string> uniqueTerms;
+    const auto baselineRecipe = pas1::generation::SoundGenerator::createRecipe(
+        dictionaryBase, "", controls);
+    for (const auto& entry : dictionary) {
+        const auto term = std::string{entry.term};
+        expect(uniqueTerms.insert(term).second, "the 500 dictionary terms must be unique");
+        const auto interpretation =
+            pas1::generation::SoundGenerator::analyzeDescription(term);
+        expect(!interpretation.recognizedTraits.empty(),
+               "every dictionary term must be recognized by the generator");
+        expect(interpretation.unsupportedWords.empty(),
+               "dictionary terms must not be reported as unsupported words");
+
+        const auto termRecipe = pas1::generation::SoundGenerator::createRecipe(
+            dictionaryBase, term, controls);
+        const auto changesSound = std::any_of(
+            termRecipe.begin(), termRecipe.end(), [&baselineRecipe](const auto& parameter) {
+                const auto baseline = std::find_if(
+                    baselineRecipe.begin(), baselineRecipe.end(),
+                    [&parameter](const auto& candidate) {
+                        return candidate.id == parameter.id;
+                    });
+                return baseline != baselineRecipe.end()
+                       && std::abs(parameter.normalizedValue - baseline->normalizedValue) > 0.0001f;
+            });
+        expect(changesSound, "every dictionary entry must change at least one sound parameter");
+    }
+    expect(uniqueTerms.size() == 500, "the dictionary must not contain duplicate words or phrases");
+}
+
+void testFactoryPresetLoudnessFloor() {
+    expect(pas1::presets::compensateFactoryMaster(0.44f) == 0.75f,
+           "quiet factory presets must be raised to the default master level");
+    expect(pas1::presets::compensateFactoryMaster(0.75f) == 0.75f,
+           "the default factory master level must not change");
+    expect(pas1::presets::compensateFactoryMaster(0.88f) == 0.88f,
+           "louder factory presets must retain their intended level");
+    expect(static_cast<int>(pas1::dsp::Waveform::sine) == 0
+               && static_cast<int>(pas1::dsp::Waveform::triangle) == 1
+               && static_cast<int>(pas1::dsp::Waveform::saw) == 2
+               && static_cast<int>(pas1::dsp::Waveform::square) == 3,
+           "the first four waveform IDs must remain stable for existing projects and presets");
 }
 
 void testSampleRateAndBlockStress() {
@@ -905,6 +1012,7 @@ int main() {
     testMorphMatrix();
     testSoundDNA();
     testSoundGenerator();
+    testFactoryPresetLoudnessFloor();
     testSampleRateAndBlockStress();
     if (failures != 0) {
         std::cerr << failures << " test assertion(s) failed\n";
