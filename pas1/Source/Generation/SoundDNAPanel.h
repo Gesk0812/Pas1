@@ -4,6 +4,7 @@
 
 #include "DSP/SoundDNA.h"
 #include "PluginProcessor.h"
+#include "UI/Utf8Text.h"
 
 #include <optional>
 #include <vector>
@@ -38,15 +39,15 @@ private:
     juce::ComboBox similarMatches;
     juce::Slider blendAmount;
     juce::Label presetALabel, presetBLabel, blendLabel, status;
-    juce::TextButton analyzeButton{"ANALYZE CURRENT"};
-    juce::TextButton similarButton{"FIND SIMILAR"};
-    juce::TextButton compareButton{"COMPARE"};
-    juce::TextButton blendButton{"BLEND A + B"};
-    juce::TextButton exploreButton{"EXPLORE SPACE"};
-    juce::TextButton generateButton{"GENERATE FROM DNA"};
-    juce::TextButton loadMatchButton{"LOAD MATCH"};
-    juce::TextButton keepButton{"KEEP"};
-    juce::TextButton revertButton{"REVERT"};
+    juce::TextButton analyzeButton{pas1::ui::utf8String("АНАЛИЗ")};
+    juce::TextButton similarButton{pas1::ui::utf8String("ПОХОЖИЕ")};
+    juce::TextButton compareButton{pas1::ui::utf8String("СРАВНИТЬ")};
+    juce::TextButton blendButton{pas1::ui::utf8String("СМЕШАТЬ A + B")};
+    juce::TextButton exploreButton{pas1::ui::utf8String("ИССЛЕДОВАТЬ")};
+    juce::TextButton generateButton{pas1::ui::utf8String("СОЗДАТЬ ЗВУК")};
+    juce::TextButton loadMatchButton{pas1::ui::utf8String("ЗАГРУЗИТЬ")};
+    juce::TextButton keepButton{pas1::ui::utf8String("ОСТАВИТЬ")};
+    juce::TextButton revertButton{pas1::ui::utf8String("ОТМЕНИТЬ")};
     pas1::dsp::SoundDNAProfile currentProfile;
     pas1::dsp::SoundDNAProfile displayProfile;
     std::optional<pas1::dsp::SoundDNAProfile> pendingProfile;

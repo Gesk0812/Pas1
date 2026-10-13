@@ -3,6 +3,7 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 
 #include "PluginProcessor.h"
+#include "UI/Utf8Text.h"
 
 #include <array>
 
@@ -36,7 +37,7 @@ private:
     MorphPad pad;
     std::array<juce::TextButton, 4> captureButtons{};
     std::array<juce::ToggleButton, pas1::dsp::MorphMatrix::parameterCount> locks{};
-    juce::TextButton factoryButton{"FACTORY CORNERS"};
-    juce::TextButton randomizeButton{"MORPH RANDOMIZE"};
+    juce::TextButton factoryButton{pas1::ui::utf8String("ЗАВОДСКИЕ УГЛЫ")};
+    juce::TextButton randomizeButton{pas1::ui::utf8String("СЛУЧАЙНЫЕ ЗВУКИ")};
     juce::Label status;
 };

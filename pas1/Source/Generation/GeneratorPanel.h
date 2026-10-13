@@ -4,6 +4,7 @@
 
 #include "Generation/SoundGenerator.h"
 #include "PluginProcessor.h"
+#include "UI/Utf8Text.h"
 
 #include <array>
 #include <vector>
@@ -35,7 +36,9 @@ private:
     void keepCurrent();
     void revert();
     void saveRecipe();
+    void loadRecipe();
     void showMessage(const juce::String& message);
+    void updateRecipeExplanation();
     std::vector<std::string> getLockedParameters() const;
     pas1::generation::RecipeControls getRecipeControls() const;
     pas1::generation::VariationMode getVariationMode() const;
@@ -48,28 +51,39 @@ private:
     juce::TextEditor seedText;
     juce::TextEditor lockedParameters;
     juce::ComboBox variationSelector;
+    std::array<juce::TextButton, 4> sectionLockButtons{
+        juce::TextButton{pas1::ui::utf8String("ОСЦ.")},
+        juce::TextButton{pas1::ui::utf8String("ФИЛЬТР")},
+        juce::TextButton{pas1::ui::utf8String("МОД.")},
+        juce::TextButton{pas1::ui::utf8String("ЭФФ.")}};
     juce::Label amountLabel, modeLabel, seedLabel, lockedLabel, variationLabel;
+    juce::TextEditor interpretationLabel;
     std::array<Slider, 9> controls{};
     std::array<juce::Label, 9> controlLabels{};
     std::array<juce::String, 9> controlNames{
-        "Character", "Brightness", "Density", "Movement", "Aggression",
-        "Space", "Harmonic", "Bass Weight", "Stereo Width"};
-    juce::TextButton recipeButton{"RECIPE PREVIEW"};
-    juce::TextButton variationButton{"VARIATION"};
-    juce::TextButton generateFourButton{"GENERATE 4"};
-    juce::TextButton generateSixteenButton{"GENERATE 16"};
-    juce::TextButton beforeAfterButton{"BEFORE / AFTER"};
-    juce::TextButton undoButton{"UNDO"};
-    juce::TextButton redoButton{"REDO"};
-    juce::TextButton keepButton{"KEEP"};
-    juce::TextButton revertButton{"REVERT"};
-    juce::TextButton applyButton{"APPLY"};
-    juce::TextButton saveRecipeButton{"SAVE RECIPE"};
+        pas1::ui::utf8String("Характер"), pas1::ui::utf8String("Яркость"),
+        pas1::ui::utf8String("Плотность"), pas1::ui::utf8String("Движение"),
+        pas1::ui::utf8String("Агрессивность"), pas1::ui::utf8String("Пространство"),
+        pas1::ui::utf8String("Гармоники"), pas1::ui::utf8String("Вес баса"),
+        pas1::ui::utf8String("Ширина стерео")};
+    juce::TextButton recipeButton{pas1::ui::utf8String("РЕЦЕПТ")};
+    juce::TextButton variationButton{pas1::ui::utf8String("ВАРИАЦИЯ")};
+    juce::TextButton generateFourButton{pas1::ui::utf8String("СОЗДАТЬ 4")};
+    juce::TextButton generateSixteenButton{pas1::ui::utf8String("СОЗДАТЬ 16")};
+    juce::TextButton beforeAfterButton{pas1::ui::utf8String("ДО / ПОСЛЕ")};
+    juce::TextButton undoButton{pas1::ui::utf8String("ОТМЕНИТЬ")};
+    juce::TextButton redoButton{pas1::ui::utf8String("ПОВТОРИТЬ")};
+    juce::TextButton keepButton{pas1::ui::utf8String("ОСТАВИТЬ")};
+    juce::TextButton revertButton{pas1::ui::utf8String("ВЕРНУТЬ")};
+    juce::TextButton applyButton{pas1::ui::utf8String("ПРИМЕНИТЬ")};
+    juce::TextButton saveRecipeButton{pas1::ui::utf8String("СОХРАНИТЬ РЕЦЕПТ")};
+    juce::TextButton loadRecipeButton{pas1::ui::utf8String("ЗАГРУЗИТЬ РЕЦЕПТ")};
     juce::Label statusLabel;
     std::unique_ptr<juce::FileChooser> fileChooser;
     juce::ValueTree originalState;
     juce::ValueTree afterState;
     std::vector<juce::ValueTree> variations;
+    std::vector<std::uint32_t> variationSeeds;
     std::vector<juce::ValueTree> undoStates;
     std::vector<juce::ValueTree> redoStates;
     bool previewTransaction = false;

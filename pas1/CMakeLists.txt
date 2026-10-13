@@ -15,6 +15,8 @@ if(PAS1_BUILD_TESTS)
     add_executable(PAS1Tests
         Tests/CoreTests.cpp
         Source/DSP/Oscillator.cpp
+        Source/DSP/AncientInstrument.cpp
+        Source/DSP/MetallicTine.cpp
         Source/DSP/AmpEnvelope.cpp
         Source/DSP/LowFrequencyOscillator.cpp
         Source/DSP/StateVariableFilter.cpp
@@ -28,7 +30,7 @@ if(PAS1_BUILD_TESTS)
     )
     target_include_directories(PAS1Tests PRIVATE Source)
     if(MSVC)
-        target_compile_options(PAS1Tests PRIVATE /W4 /permissive-)
+        target_compile_options(PAS1Tests PRIVATE /W4 /permissive- /utf-8)
     else()
         target_compile_options(PAS1Tests PRIVATE -Wall -Wextra -Wpedantic)
     endif()
@@ -44,9 +46,11 @@ if(PAS1_BUILD_PLUGIN)
         DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     )
     FetchContent_MakeAvailable(JUCE)
-if(MSVC)
-    add_link_options(/MAP)
-endif()
+
+    if(MSVC)
+        add_link_options(/MAP)
+    endif()
+
     juce_add_plugin(PAS1
         COMPANY_NAME "PAS Audio"
         BUNDLE_ID "audio.pas.pas1"
@@ -70,6 +74,8 @@ endif()
         Source/UI/ParameterPage.cpp
         Source/UI/SpectrumAnalyzer.cpp
         Source/DSP/Oscillator.cpp
+        Source/DSP/AncientInstrument.cpp
+        Source/DSP/MetallicTine.cpp
         Source/DSP/AmpEnvelope.cpp
         Source/DSP/LowFrequencyOscillator.cpp
         Source/DSP/StateVariableFilter.cpp
@@ -81,6 +87,7 @@ endif()
         Source/DSP/SoundDNA.cpp
         Source/Presets/PresetManager.cpp
         Source/Presets/PresetsPanel.cpp
+        Source/UI/ParameterGraphs.cpp
         Source/Generation/SoundGenerator.cpp
         Source/Generation/GeneratorPanel.cpp
         Source/Generation/MorphPanel.cpp
@@ -88,6 +95,11 @@ endif()
         Source/Generation/SoundDNAPanel.cpp
     )
     target_include_directories(PAS1 PRIVATE Source)
+    if(MSVC)
+        # Russian UI literals are stored as UTF-8; keep MSVC from decoding them
+        # with the Windows machine's legacy active code page.
+        target_compile_options(PAS1 PRIVATE /utf-8)
+    endif()
     target_compile_definitions(PAS1 PUBLIC
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0

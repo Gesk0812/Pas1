@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace pas1::generation {
@@ -29,6 +30,11 @@ struct RecipeControls {
     float stereoWidth = 0.35f;
 };
 
+struct RecipeInterpretation {
+    std::vector<std::string> recognizedTraits;
+    std::vector<std::string> unsupportedWords;
+};
+
 enum class VariationMode {
     fullRandom,
     subtle,
@@ -42,16 +48,29 @@ enum class VariationMode {
     seeded
 };
 
+enum class VariationSection {
+    oscillators,
+    filterAndEnvelope,
+    modulation,
+    effects
+};
+
 class SoundGenerator {
 public:
+    static RecipeInterpretation analyzeDescription(const std::string& description);
+
     static std::vector<ParameterValue> createRecipe(
         const std::vector<ParameterValue>& base, const std::string& description,
-        const RecipeControls& controls);
+        const RecipeControls& controls,
+        const std::vector<std::string>& lockedParameters = {});
 
     static std::vector<ParameterValue> createVariation(
         const std::vector<ParameterValue>& base, VariationMode mode, float amount,
         std::uint32_t seed, const std::vector<std::string>& lockedParameters,
         const std::string& genreHint = {});
+
+    static bool belongsToSection(std::string_view parameterId,
+                                 VariationSection section) noexcept;
 };
 
 } // namespace pas1::generation
