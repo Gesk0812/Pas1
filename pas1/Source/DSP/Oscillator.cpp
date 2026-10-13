@@ -47,7 +47,8 @@ float Oscillator::nextSample(float frequency, float sampleRate, Waveform wavefor
             sample = static_cast<float>(2.0 * currentPhase - 1.0)
                      - polyBlep(currentPhase, increment);
             break;
-        case Waveform::square: {
+        case Waveform::square:
+        case Waveform::pulse: {
             const auto safePulseWidth = std::clamp(std::isfinite(pulseWidth) ? pulseWidth : 0.5f,
                                                    0.02f, 0.98f);
             auto shiftedPhase = currentPhase - safePulseWidth;
@@ -58,13 +59,86 @@ float Oscillator::nextSample(float frequency, float sampleRate, Waveform wavefor
             sample -= polyBlep(shiftedPhase, increment);
             break;
         }
+        case Waveform::reverseSaw:
+            sample = -static_cast<float>(2.0 * currentPhase - 1.0)
+                     + polyBlep(currentPhase, increment);
+            break;
+        case Waveform::organ:
+        case Waveform::hollow:
+        case Waveform::formant:
+        case Waveform::bell:
+        case Waveform::metallic:
+        case Waveform::clipped: {
+            const auto phaseAngle = currentPhase * 6.28318530717958647692;
+            const auto maxRatio = std::min(24.0, 0.45 / std::max(increment, 1.0e-12));
+            double sum = 0.0;
+            double weightSum = 0.0;
+            const auto addPartial = [&](double ratio, double weight) {
+                if (ratio <= maxRatio) {
+                    sum += std::sin(phaseAngle * ratio) * weight;
+                    weightSum += std::abs(weight);
+                }
+            };
+            switch (waveform) {
+                case Waveform::organ:
+                    for (int harmonic = 1; harmonic <= 12; ++harmonic)
+                        addPartial(harmonic, 1.0 / std::pow(static_cast<double>(harmonic), 0.72));
+                    break;
+                case Waveform::hollow:
+                    addPartial(1.0, 0.34);
+                    addPartial(3.0, 1.0);
+                    addPartial(5.0, 0.52);
+                    addPartial(7.0, 0.28);
+                    addPartial(9.0, 0.16);
+                    break;
+                case Waveform::formant:
+                    addPartial(1.0, 0.38);
+                    addPartial(2.0, 0.5);
+                    addPartial(3.0, 0.9);
+                    addPartial(4.0, 1.0);
+                    addPartial(5.0, 0.7);
+                    addPartial(6.0, 0.28);
+                    addPartial(8.0, 0.16);
+                    break;
+                case Waveform::bell:
+                    addPartial(1.0, 1.0);
+                    addPartial(2.0, 0.54);
+                    addPartial(3.01, 0.31);
+                    addPartial(4.18, 0.2);
+                    addPartial(5.43, 0.12);
+                    break;
+                case Waveform::metallic:
+                    addPartial(1.0, 0.8);
+                    addPartial(1.41, 1.0);
+                    addPartial(2.76, 0.62);
+                    addPartial(4.93, 0.43);
+                    addPartial(6.6, 0.26);
+                    addPartial(8.21, 0.16);
+                    break;
+                case Waveform::clipped:
+                    addPartial(1.0, 1.0);
+                    addPartial(3.0, 0.34);
+                    addPartial(5.0, 0.16);
+                    addPartial(7.0, 0.08);
+                    break;
+                default:
+                    break;
+            }
+            sample = weightSum > 0.0
+                         ? static_cast<float>(sum / weightSum * 1.65)
+                         : 0.0f;
+            break;
+        }
+        case Waveform::count:
+            sample = 0.0f;
+            break;
     }
 
     phase_ += increment;
     if (phase_ >= 1.0)
         phase_ -= 1.0;
 
-    return std::isfinite(sample) ? sample : 0.0f;
+    return std::isfinite(sample) ? std::clamp(sample, -1.0f, 1.0f) : 0.0f;
 }
 
 } // namespace pas1::dsp

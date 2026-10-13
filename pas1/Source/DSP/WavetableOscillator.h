@@ -8,6 +8,7 @@ namespace pas1::dsp {
 
 class WavetableOscillator {
 public:
+    static constexpr int waveformCount = static_cast<int>(Waveform::count);
     static void initialize();
 
     void reset(double phase = 0.0) noexcept;
@@ -20,7 +21,7 @@ private:
     static constexpr int mipLevels = 11;
     using Table = std::array<float, tableSize>;
     using WaveTables = std::array<Table, mipLevels>;
-    using Bank = std::array<WaveTables, 4>;
+    using Bank = std::array<WaveTables, waveformCount>;
 
     static const Bank& getBank();
 

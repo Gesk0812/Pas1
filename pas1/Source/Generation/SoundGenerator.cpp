@@ -1,11 +1,14 @@
 #include "SoundGenerator.h"
+#include "SoundTraitDictionary.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cctype>
 #include <iterator>
 #include <limits>
 #include <string_view>
+#include <unordered_set>
 
 namespace pas1::generation {
 namespace {
@@ -57,6 +60,7 @@ bool contains(const std::string& text, std::string_view word) {
 }
 
 struct DescriptionIntent {
+    std::array<bool, soundTraitCount> features{};
     bool warm = false;
     bool bright = false;
     bool dark = false;
@@ -78,6 +82,37 @@ struct DescriptionIntent {
     bool sharpAttack = false;
     bool shortRelease = false;
 };
+
+bool isWordByte(unsigned char value) noexcept {
+    return value >= 0x80 || std::isalnum(value) != 0;
+}
+
+bool containsTerm(const std::string& text, std::string_view term) {
+    if (term.empty())
+        return false;
+
+    std::size_t position = 0;
+    while ((position = text.find(term, position)) != std::string::npos) {
+        const auto beforeIsWord = position > 0
+            && isWordByte(static_cast<unsigned char>(text[position - 1]));
+        const auto end = position + term.size();
+        const auto afterIsWord = end < text.size()
+            && isWordByte(static_cast<unsigned char>(text[end]));
+        if (!beforeIsWord && !afterIsWord)
+            return true;
+        ++position;
+    }
+    return false;
+}
+
+std::size_t traitIndex(SoundTrait trait) noexcept {
+    return static_cast<std::size_t>(trait);
+}
+
+bool hasFeature(const DescriptionIntent& intent, SoundTrait trait) noexcept {
+    const auto index = traitIndex(trait);
+    return index < intent.features.size() && intent.features[index];
+}
 
 DescriptionIntent analyzeIntent(const std::string& text) {
     DescriptionIntent intent;
@@ -141,6 +176,9 @@ DescriptionIntent analyzeIntent(const std::string& text) {
                           || contains(text, "короткий релиз")
                           || contains(text, "короткое затух")
                           || contains(text, "стаккато");
+    for (const auto& entry : soundTraitDictionary())
+        if (containsTerm(text, entry.term))
+            intent.features[traitIndex(entry.trait)] = true;
     return intent;
 }
 
@@ -200,6 +238,35 @@ bool isSupportedDescriptionWord(std::string_view word, const DescriptionIntent& 
 std::vector<std::string> extractUnsupportedWords(const std::string& text) {
     const auto lower = lowerCase(text);
     const auto intent = analyzeIntent(lower);
+    std::unordered_set<std::string> dictionaryTokens;
+    for (const auto& entry : soundTraitDictionary()) {
+        if (!containsTerm(lower, entry.term))
+            continue;
+
+        for (std::size_t index = 0; index < entry.term.size();) {
+            const auto byte = static_cast<unsigned char>(entry.term[index]);
+            if (byte < 0x80 && std::isalnum(byte) == 0) {
+                ++index;
+                continue;
+            }
+            const auto start = index;
+            while (index < entry.term.size()) {
+                const auto current = static_cast<unsigned char>(entry.term[index]);
+                if (current < 0x80) {
+                    if (std::isalnum(current) == 0)
+                        break;
+                    ++index;
+                } else if ((current == 0xd0 || current == 0xd1)
+                           && index + 1 < entry.term.size()) {
+                    index += 2;
+                } else {
+                    ++index;
+                }
+            }
+            if (index > start)
+                dictionaryTokens.emplace(entry.term.substr(start, index - start));
+        }
+    }
     std::vector<std::string> unsupported;
     for (std::size_t index = 0; index < lower.size();) {
         const auto byte = static_cast<unsigned char>(lower[index]);
@@ -232,7 +299,8 @@ std::vector<std::string> extractUnsupportedWords(const std::string& text) {
         }
         const auto word = std::string_view{lower}.substr(start, index - start);
         if (word.size() > 2 && !isDescriptionStopWord(word)
-            && !isSupportedDescriptionWord(word, intent)) {
+            && !isSupportedDescriptionWord(word, intent)
+            && dictionaryTokens.find(std::string{word}) == dictionaryTokens.end()) {
             const std::string token{word};
             if (std::find(unsupported.begin(), unsupported.end(), token)
                 == unsupported.end())
@@ -379,9 +447,13 @@ bool SoundGenerator::belongsToSection(std::string_view id,
 RecipeInterpretation SoundGenerator::analyzeDescription(const std::string& description) {
     const auto intent = analyzeIntent(lowerCase(description));
     RecipeInterpretation result;
-    const auto addTrait = [&result](bool enabled, const char* name) {
-        if (enabled)
-            result.recognizedTraits.emplace_back(name);
+    const auto addTrait = [&result](bool enabled, std::string_view name) {
+        if (!enabled)
+            return;
+        const std::string value{name};
+        if (std::find(result.recognizedTraits.begin(), result.recognizedTraits.end(), value)
+            == result.recognizedTraits.end())
+            result.recognizedTraits.push_back(value);
     };
     addTrait(intent.warm, "тёплый / аналоговый");
     addTrait(intent.bright, "яркий / стеклянный");
@@ -403,6 +475,8 @@ RecipeInterpretation SoundGenerator::analyzeDescription(const std::string& descr
     addTrait(intent.gong, "гонг / древний тембр");
     addTrait(intent.sharpAttack, "короткая резкая атака");
     addTrait(intent.shortRelease, "короткое затухание");
+    for (std::size_t index = 0; index < soundTraitCount; ++index)
+        addTrait(intent.features[index], soundTraitLabel(static_cast<SoundTrait>(index)));
     result.unsupportedWords = extractUnsupportedWords(description);
     return result;
 }
@@ -448,7 +522,38 @@ std::vector<ParameterValue> SoundGenerator::createRecipe(
         space = std::max(space, intent.longTail ? 0.88f : 0.75f);
     if (intent.bass)
         bassWeight = std::max(bassWeight, 0.8f);
+    const auto has = [&intent](SoundTrait trait) { return hasFeature(intent, trait); };
+    if (has(SoundTrait::warm))
+        character = std::max(character, 0.72f);
+    if (has(SoundTrait::bright))
+        brightness = std::max(brightness, 0.82f);
+    if (has(SoundTrait::dark))
+        brightness = std::min(brightness, 0.24f);
+    if (has(SoundTrait::airy))
+        complexity = std::max(complexity, 0.58f);
+    if (has(SoundTrait::metallic) || has(SoundTrait::richHarmonics))
+        complexity = std::max(complexity, 0.82f);
+    if (has(SoundTrait::bass) || has(SoundTrait::sub))
+        bassWeight = std::max(bassWeight, 0.82f);
+    if (has(SoundTrait::unison) || has(SoundTrait::strings)
+        || has(SoundTrait::choir))
+        density = std::max(density, 0.72f);
+    if (has(SoundTrait::detuned) || has(SoundTrait::unison)
+        || has(SoundTrait::strings) || has(SoundTrait::choir))
+        stereoWidth = std::max(stereoWidth, 0.7f);
+    if (has(SoundTrait::wide) || has(SoundTrait::chorus))
+        stereoWidth = std::max(stereoWidth, 0.82f);
+    if (has(SoundTrait::space) || has(SoundTrait::reverb)
+        || has(SoundTrait::longRelease))
+        space = std::max(space, 0.78f);
+    if (has(SoundTrait::aggressive) || has(SoundTrait::brass)
+        || has(SoundTrait::distortion))
+        aggression = std::max(aggression, 0.68f);
     if (intent.pad) {
+        density = std::max(density, 0.62f);
+        movement = std::max(movement, 0.42f);
+    }
+    if (has(SoundTrait::pad) || has(SoundTrait::choir)) {
         density = std::max(density, 0.62f);
         movement = std::max(movement, 0.42f);
     }
@@ -505,16 +610,147 @@ std::vector<ParameterValue> SoundGenerator::createRecipe(
     setRaw(result, "delaymix", space * 0.24f);
     setRaw(result, "attack", blend(0.004f, 0.7f, movement) * (1.0f - aggression * 0.8f));
     setRaw(result, "release", blend(0.12f, 2.2f, space));
-    if (intent.pad) {
+    if (intent.pad || has(SoundTrait::pad) || has(SoundTrait::choir)
+        || has(SoundTrait::strings)) {
         setRaw(result, "attack", 0.45f);
         setRaw(result, "release", 1.5f);
     }
-    if (intent.pluck || intent.sharpAttack)
+    if (intent.pluck || intent.sharpAttack || has(SoundTrait::pluck)
+        || has(SoundTrait::shortAttack))
         setRaw(result, "attack", 0.003f);
     if (intent.longTail && !intent.shortRelease)
         setRaw(result, "release", std::max(1.8f, blend(0.12f, 2.2f, space)));
-    if (intent.shortRelease)
+    if (intent.shortRelease || has(SoundTrait::shortRelease))
         setRaw(result, "release", 0.12f);
+    if (has(SoundTrait::slowAttack))
+        setRaw(result, "attack", 0.85f);
+    if (has(SoundTrait::longRelease))
+        setRaw(result, "release", 2.8f);
+
+    if (has(SoundTrait::sineWave))
+        setRaw(result, "waveform", 0.0f);
+    else if (has(SoundTrait::triangleWave))
+        setRaw(result, "waveform", 1.0f);
+    else if (has(SoundTrait::sawWave))
+        setRaw(result, "waveform", 2.0f);
+    else if (has(SoundTrait::squareWave))
+        setRaw(result, "waveform", 3.0f);
+    else if (has(SoundTrait::pulseWave)) {
+        setRaw(result, "waveform", 4.0f);
+        setRaw(result, "pulsewidth", 0.25f);
+    } else if (has(SoundTrait::organWave))
+        setRaw(result, "waveform", 6.0f);
+    else if (has(SoundTrait::formantWave))
+        setRaw(result, "waveform", 8.0f);
+    else if (has(SoundTrait::bellWave))
+        setRaw(result, "waveform", 9.0f);
+
+    if (has(SoundTrait::noise) || has(SoundTrait::airy))
+        setRaw(result, "noiselevel", has(SoundTrait::noise) ? 0.48f : 0.2f);
+    if (has(SoundTrait::sub) || has(SoundTrait::bass)) {
+        setRaw(result, "sublevel", has(SoundTrait::sub) ? 0.76f : bassWeight * 0.72f);
+        setRaw(result, "osc1octave", has(SoundTrait::sub) ? -1.0f : -0.5f);
+    }
+    if (has(SoundTrait::strings)) {
+        setRaw(result, "waveform", 1.0f);
+        setRaw(result, "unisonvoices", 4.0f);
+        setRaw(result, "unisondetune", 13.0f);
+    }
+    if (has(SoundTrait::brass)) {
+        setRaw(result, "waveform", 2.0f);
+        setRaw(result, "filtercutoff", 7200.0f);
+        setRaw(result, "filterdrive", 0.28f);
+    }
+    if (has(SoundTrait::choir)) {
+        setRaw(result, "unisonvoices", 6.0f);
+        setRaw(result, "unisondetune", 24.0f);
+        setRaw(result, "chorusenabled", 1.0f);
+        setRaw(result, "chorusmix", 0.3f);
+    }
+    if (has(SoundTrait::detuned)) {
+        setRaw(result, "osc2level", 0.3f);
+        setRaw(result, "osc2detune", 12.0f);
+    }
+    if (has(SoundTrait::unison) || has(SoundTrait::strings))
+        setRaw(result, "unisonvoices", 5.0f);
+    if (has(SoundTrait::sync)) {
+        setRaw(result, "osc2sync", 1.0f);
+        setRaw(result, "osc2level", 0.32f);
+    }
+    if (has(SoundTrait::fm)) {
+        setRaw(result, "fmamount", 0.62f);
+        setRaw(result, "osc2level", 0.34f);
+    }
+    if (has(SoundTrait::ringMod))
+        setRaw(result, "ringamount", 0.62f);
+    if (has(SoundTrait::glide)) {
+        setRaw(result, "glideenabled", 1.0f);
+        setRaw(result, "glidetime", 0.16f);
+    }
+    if (has(SoundTrait::wide) || has(SoundTrait::chorus)) {
+        setRaw(result, "chorusenabled", 1.0f);
+        setRaw(result, "chorusmix", 0.35f);
+        setRaw(result, "chorusdepth", 0.78f);
+        setRaw(result, "stereowidth", 1.6f);
+    }
+    if (has(SoundTrait::space) || has(SoundTrait::reverb)) {
+        setRaw(result, "reverbenabled", 1.0f);
+        setRaw(result, "reverbmix", 0.38f);
+        setRaw(result, "reverbdecay", 0.76f);
+    }
+    if (has(SoundTrait::delay)) {
+        setRaw(result, "delayenabled", 1.0f);
+        setRaw(result, "delaymix", 0.32f);
+        setRaw(result, "delayfeedback", 0.38f);
+    }
+    if (has(SoundTrait::phaser)) {
+        setRaw(result, "phaserenabled", 1.0f);
+        setRaw(result, "phasermix", 0.4f);
+        setRaw(result, "phaserdepth", 0.7f);
+    }
+    if (has(SoundTrait::vibrato)) {
+        setRaw(result, "lfo1target", 1.0f);
+        setRaw(result, "lfo1amount", 0.24f);
+        setRaw(result, "lfo1rate", 5.2f);
+    }
+    if (has(SoundTrait::tremolo)) {
+        setRaw(result, "lfo1target", 3.0f);
+        setRaw(result, "lfo1amount", 0.36f);
+        setRaw(result, "lfo1rate", 4.2f);
+        setRaw(result, "osc2level", 0.42f);
+    }
+    if (has(SoundTrait::lowpass)) {
+        setRaw(result, "filtertype", 0.0f);
+        setRaw(result, "filtercutoff", 1800.0f);
+    }
+    if (has(SoundTrait::highpass)) {
+        setRaw(result, "filtertype", 1.0f);
+        setRaw(result, "filtercutoff", 1200.0f);
+    }
+    if (has(SoundTrait::bandpass)) {
+        setRaw(result, "filtertype", 2.0f);
+        setRaw(result, "filtercutoff", 1600.0f);
+    }
+    if (has(SoundTrait::resonant))
+        setRaw(result, "filterresonance", 0.82f);
+    if (has(SoundTrait::distortion)) {
+        setRaw(result, "distortionmix", 0.32f);
+        setRaw(result, "distortiondrive", 0.62f);
+        setRaw(result, "filterdrive", 0.3f);
+    }
+    if (has(SoundTrait::musicBox)) {
+        setRaw(result, "musicboxmix", 0.9f);
+        setRaw(result, "musicboxbrightness", 0.8f);
+        setRaw(result, "musicboxinharmonicity", 0.82f);
+    }
+    if (has(SoundTrait::aulos))
+        ancientMode = 1;
+    else if (has(SoundTrait::lyre))
+        ancientMode = 2;
+    else if (has(SoundTrait::foundMetal))
+        ancientMode = 4;
+    else if (has(SoundTrait::bronzeGong))
+        ancientMode = 3;
     if (ancientMode > 0) {
         setRaw(result, "ancientinstrument", static_cast<float>(ancientMode));
         setRaw(result, "ancientmix", 0.88f);
