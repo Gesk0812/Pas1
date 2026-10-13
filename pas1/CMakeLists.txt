@@ -26,6 +26,7 @@ if(PAS1_BUILD_TESTS)
         Source/DSP/ModulationMatrix.cpp
         Source/DSP/Portamento.cpp
         Source/DSP/SoundDNA.cpp
+        Source/DSP/Tuning.cpp
         Source/Generation/SoundGenerator.cpp
         Source/Generation/SoundTraitDictionary.cpp
     )
@@ -86,6 +87,7 @@ if(PAS1_BUILD_PLUGIN)
         Source/DSP/ModulationMatrix.cpp
         Source/DSP/Portamento.cpp
         Source/DSP/SoundDNA.cpp
+        Source/DSP/Tuning.cpp
         Source/Presets/PresetManager.cpp
         Source/Presets/PresetsPanel.cpp
         Source/UI/ParameterGraphs.cpp

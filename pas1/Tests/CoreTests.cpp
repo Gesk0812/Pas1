@@ -8,8 +8,10 @@
 #include "DSP/LowFrequencyOscillator.h"
 #include "DSP/Oscillator.h"
 #include "DSP/MetallicTine.h"
+#include "DSP/MacroControls.h"
 #include "DSP/AncientInstrument.h"
 #include "DSP/StateVariableFilter.h"
+#include "DSP/Tuning.h"
 #include "DSP/WavetableOscillator.h"
 #include "Generation/SoundGenerator.h"
 #include "Generation/SoundTraitDictionary.h"
@@ -580,6 +582,62 @@ void testPortamento() {
     expect(glide.nextSample() == 330.0f, "zero-duration portamento must jump directly to target");
 }
 
+void testTuning() {
+    using pas1::dsp::Temperament;
+    const auto equal = static_cast<int>(Temperament::equal);
+    const auto just = static_cast<int>(Temperament::justIntonation);
+    const auto pythagorean = static_cast<int>(Temperament::pythagorean);
+
+    const auto a4 = pas1::dsp::tunedMidiFrequency(69, 0, 0, 0.0f, equal, 0);
+    expect(std::abs(a4 - 440.0f) < 0.001f,
+           "equal temperament must preserve concert A at 440 Hz");
+    expect(std::abs(pas1::dsp::tunedMidiFrequency(69, 1, 0, 0.0f, equal, 0)
+                    - 880.0f) < 0.01f,
+           "octave shift must double the pitch frequency");
+    expect(std::abs(pas1::dsp::tunedMidiFrequency(69, 0, -12, 0.0f, equal, 0)
+                    - 220.0f) < 0.01f,
+           "semitone transpose must change the pitch by an octave");
+    const auto oneCent = pas1::dsp::tunedMidiFrequency(69, 0, 0, 100.0f, equal, 0);
+    expect(std::abs(oneCent - 440.0f * std::exp2(1.0f / 12.0f)) < 0.01f,
+           "fine tuning must apply cents independently of the temperament");
+
+    const auto c4 = pas1::dsp::tunedMidiFrequency(60, 0, 0, 0.0f, equal, 0);
+    const auto justE4 = pas1::dsp::tunedMidiFrequency(64, 0, 0, 0.0f, just, 0);
+    expect(std::abs(justE4 - c4 * 1.25f) < 0.02f,
+           "just intonation must tune the major third to a 5:4 ratio");
+    const auto pythagoreanG4 =
+        pas1::dsp::tunedMidiFrequency(67, 0, 0, 0.0f, pythagorean, 0);
+    expect(std::abs(pythagoreanG4 - c4 * 1.5f) < 0.02f,
+           "Pythagorean tuning must tune the fifth to a 3:2 ratio");
+    expect(std::abs(pas1::dsp::tunedMidiFrequency(62, 0, 0, 0.0f, just, 2)
+                    - pas1::dsp::tunedMidiFrequency(62, 0, 0, 0.0f, equal, 0)) < 0.01f,
+           "the selected root must remain in tune with equal temperament");
+    expect(pas1::dsp::temperamentRatio(60, 99, 0) == 1.0f,
+           "unknown temperament values must safely fall back to equal temperament");
+    expect(std::isfinite(pas1::dsp::tunedMidiFrequency(
+               60, 0, 0, std::numeric_limits<float>::quiet_NaN(), equal, 0)),
+           "non-finite tuning input must not create an invalid frequency");
+}
+
+void testMacroControls() {
+    using namespace pas1::dsp::macro;
+    expect(normalizePercent(50.0f) == 0.5f,
+           "the neutral macro position must map to the center of its normalized range");
+    expect(bodySubLevel(0.4f, 0.5f) == 0.4f
+               && bodyOscillatorLevel(0.4f, 0.5f) == 0.4f
+               && bodyFilterOctaves(0.5f) == 0.0f
+               && brightnessFilterOctaves(0.5f) == 0.0f
+               && movementScale(0.5f) == 1.0f,
+           "centered macros must preserve the original sound");
+    expect(bodySubLevel(0.2f, 1.0f) > bodySubLevel(0.2f, 0.0f)
+               && bodyFilterOctaves(1.0f) < 0.0f,
+           "Body must increase low-frequency sources and gently darken the sound");
+    expect(brightnessFilterOctaves(1.0f) > brightnessFilterOctaves(0.0f),
+           "Brightness must move the filter cutoff across its range");
+    expect(movementScale(1.0f) > movementScale(0.0f),
+           "Movement must scale modulation and detune depth");
+}
+
 void testNotePriorityStack() {
     pas1::dsp::NotePriorityStack notes;
     expect(notes.size() == 0 && notes.mostRecent() == nullptr,
@@ -1008,6 +1066,8 @@ int main() {
     testEffects();
     testModulationMatrix();
     testPortamento();
+    testTuning();
+    testMacroControls();
     testNotePriorityStack();
     testMorphMatrix();
     testSoundDNA();
