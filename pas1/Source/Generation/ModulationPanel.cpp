@@ -53,6 +53,11 @@ ModulationPanel::RouteRow::RouteRow(juce::AudioProcessorValueTreeState& state,
     addAndMakeVisible(enabled);
 
     const auto prefix = "modroute" + std::to_string(routeIndex_ + 1);
+    if (auto* parameter = state.getParameter(prefix + "amount"))
+        amount.setDoubleClickReturnValue(
+            true, parameter->convertFrom0to1(parameter->getDefaultValue()));
+    amount.setTooltip(amount.getTooltip()
+                      + pas1::ui::utf8String(" Двойной щелчок возвращает значение по умолчанию."));
     sourceAttachment = std::make_unique<ComboBoxAttachment>(
         state, prefix + "source", source);
     destinationAttachment = std::make_unique<ComboBoxAttachment>(

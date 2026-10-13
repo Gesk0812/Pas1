@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <utility>
 
 namespace {
 constexpr juce::uint32 panelColour = 0xff24160f;

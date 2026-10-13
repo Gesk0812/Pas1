@@ -17,7 +17,7 @@ private:
     Pas1AudioProcessor& processor_;
 };
 
-class FilterGraphs final : public juce::Component {
+class FilterGraphs final : public juce::Component, public juce::SettableTooltipClient {
 public:
     explicit FilterGraphs(Pas1AudioProcessor& processor) : processor_(processor) {}
 

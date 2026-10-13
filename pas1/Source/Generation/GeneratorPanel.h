@@ -57,7 +57,7 @@ private:
         juce::TextButton{pas1::ui::utf8String("МОД.")},
         juce::TextButton{pas1::ui::utf8String("ЭФФ.")}};
     juce::Label amountLabel, modeLabel, seedLabel, lockedLabel, variationLabel;
-    juce::Label interpretationLabel;
+    juce::TextEditor interpretationLabel;
     std::array<Slider, 9> controls{};
     std::array<juce::Label, 9> controlLabels{};
     std::array<juce::String, 9> controlNames{

@@ -143,6 +143,8 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     ancientPage->setVisible(false);
     pas1::diagnostics::startupTrace("editor.filterPage.before");
     filterGraphs = std::make_unique<FilterGraphs>(processor_);
+    filterGraphs->setTooltip(pas1::ui::utf8String(
+        "Частотный график: перетащите точку — по горизонтали меняется частота среза, по вертикали резонанс. На нижнем графике тяните точки огибающей: атака, спад/уровень удержания, отпускание."));
     filterPage = std::make_unique<ParameterPage>(
         processor_.parameters, pas1::ui::utf8String("ФИЛЬТРЫ И ОГИБАЮЩИЕ"),
         std::vector<ParameterPageGroup>{

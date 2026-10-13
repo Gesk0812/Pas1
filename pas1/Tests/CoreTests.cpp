@@ -725,6 +725,37 @@ void testSoundGenerator() {
     const auto unknownRecipe = pas1::generation::SoundGenerator::createRecipe(
         base, "xyzzy florp quux", controls);
     expect(unknownRecipe.size() == base.size(), "unknown recipe words must be safe");
+    const auto unknownWords =
+        pas1::generation::SoundGenerator::analyzeDescription("xyzzy florp quux");
+    expect(unknownWords.unsupportedWords.size() == 3,
+           "generator explanation should report every unsupported word");
+
+    const auto promptAnalysis =
+        pas1::generation::SoundGenerator::analyzeDescription(
+            "ТЁПЛЫЙ подвижный аналоговый бас с металлической атакой и длинным широким хвостом");
+    expect(promptAnalysis.recognizedTraits.size() >= 6,
+           "Russian sound descriptions should list the traits understood by the generator");
+    expect(promptAnalysis.unsupportedWords.empty(),
+           "supported Russian sound terms should not be reported as unknown");
+    const auto englishPromptAnalysis =
+        pas1::generation::SoundGenerator::analyzeDescription(
+            "Warm evolving analog bass with metallic attack, moderate distortion and a wide stereo tail");
+    expect(englishPromptAnalysis.unsupportedWords.empty(),
+           "supported English sound terms should not be reported as unknown");
+
+    const auto sharpAttackRecipe = pas1::generation::SoundGenerator::createRecipe(
+        base, "Warm pad with metallic attack", controls);
+    expect(findValue(sharpAttackRecipe, "attack")->normalizedValue
+               < findValue(base, "attack")->normalizedValue,
+           "a specific sharp-attack request must not be overwritten by the generic recipe attack");
+
+    const std::vector<ParameterValue> tailBase{
+        {"release", 0.1f, 0.1f, 0.001f, 5.0f, 1.0f, 0, false}};
+    const auto longTailRecipe = pas1::generation::SoundGenerator::createRecipe(
+        tailBase, "long wide tail", controls);
+    expect(findValue(longTailRecipe, "release")->normalizedValue
+               > findValue(tailBase, "release")->normalizedValue,
+           "a long-tail description should lengthen the release");
 
     const auto musicBoxRecipe = pas1::generation::SoundGenerator::createRecipe(
         musicBoxBase, "bright music box with metallic tines", controls);

@@ -125,6 +125,7 @@ private:
             label_.setFont(juce::FontOptions{11.0f, juce::Font::bold});
             addAndMakeVisible(label_);
 
+            auto hasSlider = false;
             if (dynamic_cast<juce::AudioParameterBool*>(parameter) != nullptr) {
                 label_.setVisible(false);
                 toggle_.setButtonText(parameterName);
@@ -143,6 +144,7 @@ private:
                 comboAttachment_ =
                     std::make_unique<ComboBoxAttachment>(state, id, combo_);
             } else {
+                hasSlider = true;
                 const auto range = parameter->getNormalisableRange();
                 slider_.setSliderStyle(juce::Slider::LinearHorizontal);
                 slider_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 76, 22);
@@ -154,7 +156,7 @@ private:
                                                : juce::String{});
                 slider_.setDoubleClickReturnValue(
                     true, parameter->convertFrom0to1(parameter->getDefaultValue()));
-                if (id == "filtercutoff" || id.startsWith("lfo") && id.endsWith("rate"))
+                if (id == "filtercutoff" || (id.startsWith("lfo") && id.endsWith("rate")))
                     slider_.setNumDecimalPlacesToDisplay(0);
                 else if (id.endsWith("attack") || id.endsWith("decay")
                          || id.endsWith("release") || id == "glidetime")
@@ -175,13 +177,15 @@ private:
             if (tooltip.isEmpty())
                 tooltip = parameter->getName(64);
             tooltip += pas1::ui::utf8String(" Заводское значение: ")
-                       + parameter->getText(parameter->getDefaultValue(), 8)
-                       + pas1::ui::utf8String(". Двойной щелчок по ползунку возвращает это значение.");
+                       + parameter->getText(parameter->getDefaultValue(), 8);
+            if (hasSlider)
+                tooltip += pas1::ui::utf8String(
+                    ". Двойной щелчок по ползунку возвращает это значение.");
             label_.setTooltip(tooltip);
             slider_.setTooltip(tooltip);
             combo_.setTooltip(tooltip);
             toggle_.setTooltip(tooltip);
-            if (slider_.getParentComponent() != nullptr) {
+            if (hasSlider) {
                 const auto range = parameter->getNormalisableRange();
                 auto rangeHint = pas1::ui::utf8String("Диапазон: ")
                                  + juce::String{range.start, 2}

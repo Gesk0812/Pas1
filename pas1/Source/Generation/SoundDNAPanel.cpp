@@ -52,7 +52,10 @@ SoundDNAPanel::SoundDNAPanel(Pas1AudioProcessor& processor) : processor_(process
     blendAmount.setTextBoxStyle(juce::Slider::TextBoxRight, false, 48, 22);
     blendAmount.setRange(0.0, 100.0, 1.0);
     blendAmount.setValue(50.0, juce::dontSendNotification);
+    blendAmount.setDoubleClickReturnValue(true, 50.0);
     blendAmount.setTextValueSuffix("%");
+    blendAmount.setTooltip(pas1::ui::utf8String(
+        "Баланс между пресетами A и B: 0% — полностью A, 100% — полностью B. Двойной щелчок возвращает 50%."));
     blendAmount.setColour(juce::Slider::trackColourId, accent);
     blendAmount.setColour(juce::Slider::thumbColourId, text);
     blendAmount.setColour(juce::Slider::textBoxTextColourId, text);

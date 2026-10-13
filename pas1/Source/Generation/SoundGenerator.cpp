@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cctype>
+#include <iterator>
 #include <limits>
 #include <string_view>
 
@@ -53,6 +54,192 @@ std::string lowerCase(std::string text) {
 
 bool contains(const std::string& text, std::string_view word) {
     return text.find(word) != std::string::npos;
+}
+
+struct DescriptionIntent {
+    bool warm = false;
+    bool bright = false;
+    bool dark = false;
+    bool moving = false;
+    bool metallic = false;
+    bool aggressive = false;
+    bool distortion = false;
+    bool wide = false;
+    bool spacious = false;
+    bool longTail = false;
+    bool bass = false;
+    bool pad = false;
+    bool pluck = false;
+    bool musicBox = false;
+    bool aulos = false;
+    bool lyre = false;
+    bool foundMetal = false;
+    bool gong = false;
+    bool sharpAttack = false;
+    bool shortRelease = false;
+};
+
+DescriptionIntent analyzeIntent(const std::string& text) {
+    DescriptionIntent intent;
+    intent.warm = contains(text, "warm") || contains(text, "analog")
+                  || contains(text, "soft")
+                  || contains(text, "аналог") || contains(text, "мягк")
+                  || contains(text, "тёпл")
+                  || contains(text, "тепл");
+    intent.bright = contains(text, "bright") || contains(text, "glass")
+                    || contains(text, "стекл")
+                    || contains(text, "светл") || contains(text, "ярк");
+    intent.dark = contains(text, "dark") || contains(text, "тёмн")
+                  || contains(text, "темн") || contains(text, "мрачн");
+    intent.moving = contains(text, "evolving") || contains(text, "moving")
+                    || contains(text, "движ") || contains(text, "развива")
+                    || contains(text, "эволюц");
+    intent.metallic = contains(text, "metallic") || contains(text, "metal")
+                      || contains(text, "металл") || contains(text, "металлич");
+    intent.aggressive = contains(text, "aggressive") || contains(text, "агрессив")
+                        || contains(text, "злой");
+    intent.distortion = contains(text, "moderate distortion") || contains(text, "умерен")
+                        || contains(text, "distortion") || contains(text, "искаж")
+                        || contains(text, "перегруз");
+    intent.wide = contains(text, "wide") || contains(text, "stereo")
+                  || contains(text, "широк") || contains(text, "стерео");
+    intent.longTail = contains(text, "long tail") || contains(text, "длинн")
+                      || contains(text, "хвост");
+    intent.spacious = contains(text, "spacious") || contains(text, "tail")
+                      || contains(text, "space") || contains(text, "простран")
+                      || intent.longTail;
+    intent.bass = contains(text, "bass") || contains(text, "бас");
+    intent.pad = contains(text, "pad") || contains(text, "пэд");
+    intent.pluck = contains(text, "pluck") || contains(text, "plucked")
+                   || contains(text, "плик") || contains(text, "щипк");
+    intent.musicBox = contains(text, "music box") || contains(text, "musicbox")
+                      || contains(text, "шкатул");
+    intent.aulos = contains(text, "aulos") || contains(text, "reed pipe")
+                   || contains(text, "аулос");
+    intent.lyre = contains(text, "lyre") || contains(text, "lyra")
+                  || contains(text, "лир");
+    intent.foundMetal = contains(text, "found metal")
+                        || contains(text, "scrap metal")
+                        || contains(text, "металлолом")
+                        || contains(text, "обломки металла");
+    intent.gong = contains(text, "gong") || contains(text, "bronze")
+                  || contains(text, "гонг") || contains(text, "бронз")
+                  || contains(text, "odyssey") || contains(text, "одиссея")
+                  || contains(text, "ancient") || contains(text, "древн");
+    intent.sharpAttack = contains(text, "sharp attack")
+                         || contains(text, "fast attack")
+                         || contains(text, "snappy")
+                         || contains(text, "резкая атака")
+                         || contains(text, "быстрая атака")
+                         || contains(text, "металлическая атака")
+                         || (contains(text, "металлич") && contains(text, "атак"))
+                         || (contains(text, "резк") && contains(text, "атак"))
+                         || (contains(text, "быстр") && contains(text, "атак"))
+                         || contains(text, "metallic attack");
+    intent.shortRelease = contains(text, "short release")
+                          || contains(text, "staccato")
+                          || contains(text, "короткий релиз")
+                          || contains(text, "короткое затух")
+                          || contains(text, "стаккато");
+    return intent;
+}
+
+bool isDescriptionStopWord(std::string_view word) {
+    static constexpr std::string_view stopWords[]{
+        "a", "an", "and", "are", "as", "be", "by", "create", "for", "from",
+        "i", "in", "it", "make", "me", "my", "of", "on", "or", "please",
+        "some", "sound", "synth", "the", "this", "to", "use", "want", "with",
+        "с", "со", "и", "а", "но", "в", "во", "на", "из", "для", "от", "до",
+        "по", "под", "над", "при", "как", "чтобы", "мне", "мой", "моя", "мои",
+        "это", "этот", "эта", "звук", "звучание", "сделай", "создай", "нужен",
+        "нужна", "нужно", "надо", "хочу", "добавь", "сделать", "пожалуйста",
+        "просто", "вариант", "синтезатор", "пресет"
+    };
+    return std::find(std::begin(stopWords), std::end(stopWords), word)
+           != std::end(stopWords);
+}
+
+bool isSupportedDescriptionWord(std::string_view word, const DescriptionIntent& intent) {
+    static constexpr std::string_view supportedRoots[]{
+        "warm", "analog", "аналог", "soft", "мягк", "тёпл", "тепл",
+        "bright", "glass", "светл", "ярк", "стекл", "dark", "тёмн", "темн",
+        "мрачн", "evolving", "moving", "движ", "развива", "эволюц",
+        "metallic", "metal", "металл", "металлич", "aggressive", "агрессив", "злой",
+        "distortion", "moderate", "умерен", "искаж", "перегруз", "wide",
+        "width", "широк",
+        "spacious", "space", "tail", "хвост", "длинн", "простран",
+        "stereo", "стерео",
+        "bass", "бас", "pad", "пэд", "pluck", "plucked", "плик", "щипк",
+        "musicbox", "шкатул", "aulos", "аулос", "lyre", "lyra", "лир",
+        "металлолом", "обломки",
+        "gong", "bronze", "гонг", "бронз", "odyssey", "одиссея", "ancient",
+        "древн", "sharp", "fast", "snappy", "резк", "быстр", "staccato",
+        "затух", "стаккато"
+    };
+    const auto matchesRoot = [word](std::string_view root) {
+        return word.find(root) != std::string_view::npos;
+    };
+    if (std::any_of(std::begin(supportedRoots), std::end(supportedRoots), matchesRoot))
+        return true;
+    if (intent.musicBox && (word == "music" || word == "box"))
+        return true;
+    if (intent.aulos && (word == "reed" || word == "pipe"))
+        return true;
+    if (intent.foundMetal && (word == "found" || word == "scrap"))
+        return true;
+    if (intent.sharpAttack
+        && (word == "attack" || word.find("атак") != std::string_view::npos))
+        return true;
+    if (intent.shortRelease
+        && (word == "short" || word == "release" || word == "релиз"
+            || word.find("коротк") != std::string_view::npos))
+        return true;
+    return intent.longTail && word == "long";
+}
+
+std::vector<std::string> extractUnsupportedWords(const std::string& text) {
+    const auto lower = lowerCase(text);
+    const auto intent = analyzeIntent(lower);
+    std::vector<std::string> unsupported;
+    for (std::size_t index = 0; index < lower.size();) {
+        const auto byte = static_cast<unsigned char>(lower[index]);
+        const auto isAsciiWord = byte < 0x80 && std::isalnum(byte) != 0;
+        const auto isCyrillicLead = byte == 0xd0 || byte == 0xd1;
+        if (isCyrillicLead
+            && (index + 1 >= lower.size()
+                || (static_cast<unsigned char>(lower[index + 1]) & 0xc0) != 0x80)) {
+            ++index;
+            continue;
+        }
+        if (!isAsciiWord && !isCyrillicLead) {
+            ++index;
+            continue;
+        }
+
+        const auto start = index;
+        while (index < lower.size()) {
+            const auto current = static_cast<unsigned char>(lower[index]);
+            if (current < 0x80) {
+                if (std::isalnum(current) == 0)
+                    break;
+                ++index;
+            } else if ((current == 0xd0 || current == 0xd1)
+                       && index + 1 < lower.size()) {
+                index += 2;
+            } else {
+                break;
+            }
+        }
+        const auto word = std::string_view{lower}.substr(start, index - start);
+        if (word.size() > 2 && !isDescriptionStopWord(word)
+            && !isSupportedDescriptionWord(word, intent)) {
+            const std::string token{word};
+            if (std::find(unsupported.begin(), unsupported.end(), token)
+                == unsupported.end())
+                unsupported.push_back(token);
+        }
+    }
+    return unsupported;
 }
 
 bool startsWith(std::string_view text, std::string_view prefix) {
@@ -189,11 +376,43 @@ bool SoundGenerator::belongsToSection(std::string_view id,
     return false;
 }
 
+RecipeInterpretation SoundGenerator::analyzeDescription(const std::string& description) {
+    const auto intent = analyzeIntent(lowerCase(description));
+    RecipeInterpretation result;
+    const auto addTrait = [&result](bool enabled, const char* name) {
+        if (enabled)
+            result.recognizedTraits.emplace_back(name);
+    };
+    addTrait(intent.warm, "тёплый / аналоговый");
+    addTrait(intent.bright, "яркий / стеклянный");
+    addTrait(intent.dark, "тёмный");
+    addTrait(intent.moving, "подвижный");
+    addTrait(intent.metallic, "металлический тембр");
+    addTrait(intent.aggressive, "агрессивный");
+    addTrait(intent.distortion, "искажение");
+    addTrait(intent.wide, "широкое стерео");
+    addTrait(intent.spacious, intent.longTail ? "пространство / длинный хвост"
+                                              : "пространственный звук");
+    addTrait(intent.bass, "бас");
+    addTrait(intent.pad, "пэд");
+    addTrait(intent.pluck, "щипковая атака");
+    addTrait(intent.musicBox, "музыкальная шкатулка");
+    addTrait(intent.aulos, "аулос");
+    addTrait(intent.lyre, "лира");
+    addTrait(intent.foundMetal, "ударный тембр из найденного металла");
+    addTrait(intent.gong, "гонг / древний тембр");
+    addTrait(intent.sharpAttack, "короткая резкая атака");
+    addTrait(intent.shortRelease, "короткое затухание");
+    result.unsupportedWords = extractUnsupportedWords(description);
+    return result;
+}
+
 std::vector<ParameterValue> SoundGenerator::createRecipe(
     const std::vector<ParameterValue>& base, const std::string& description,
     const RecipeControls& controls, const std::vector<std::string>& lockedParameters) {
     auto result = base;
     const auto text = lowerCase(description);
+    const auto intent = analyzeIntent(text);
     auto character = unit(controls.character);
     auto brightness = unit(controls.brightness);
     auto density = unit(controls.density);
@@ -205,53 +424,41 @@ std::vector<ParameterValue> SoundGenerator::createRecipe(
     auto stereoWidth = unit(controls.stereoWidth);
     int ancientMode = 0;
 
-    if (contains(text, "warm") || contains(text, "analog") || contains(text, "мягк")
-        || contains(text, "тёпл") || contains(text, "тепл")) {
+    if (intent.warm) {
         character = std::max(character, 0.72f);
         brightness = std::min(brightness, 0.48f);
     }
-    if (contains(text, "bright") || contains(text, "glass") || contains(text, "светл")
-        || contains(text, "ярк")) {
+    if (intent.bright) {
         brightness = std::max(brightness, 0.78f);
         complexity = std::max(complexity, 0.58f);
     }
-    if (contains(text, "dark") || contains(text, "тёмн") || contains(text, "темн")
-        || contains(text, "мрачн"))
+    if (intent.dark)
         brightness = std::min(brightness, 0.28f);
-    if (contains(text, "evolving") || contains(text, "moving") || contains(text, "движ")
-        || contains(text, "развива") || contains(text, "эволюц"))
+    if (intent.moving)
         movement = std::max(movement, 0.72f);
-    if (contains(text, "metallic") || contains(text, "metal") || contains(text, "металл"))
+    if (intent.metallic)
         complexity = std::max(complexity, 0.8f);
-    if (contains(text, "aggressive") || contains(text, "агрессив") || contains(text, "злой"))
+    if (intent.aggressive)
         aggression = std::max(aggression, 0.78f);
-    if (contains(text, "moderate distortion") || contains(text, "умерен")
-        || contains(text, "distortion") || contains(text, "искаж")
-        || contains(text, "перегруз"))
+    if (intent.distortion)
         aggression = std::max(aggression, 0.48f);
-    if (contains(text, "wide") || contains(text, "широк"))
+    if (intent.wide)
         stereoWidth = std::max(stereoWidth, 0.78f);
-    if (contains(text, "spacious") || contains(text, "tail") || contains(text, "space")
-        || contains(text, "простран"))
-        space = std::max(space, 0.75f);
-    if (contains(text, "bass") || contains(text, "бас"))
+    if (intent.spacious)
+        space = std::max(space, intent.longTail ? 0.88f : 0.75f);
+    if (intent.bass)
         bassWeight = std::max(bassWeight, 0.8f);
-    if (contains(text, "pad") || contains(text, "пэд")) {
+    if (intent.pad) {
         density = std::max(density, 0.62f);
         movement = std::max(movement, 0.42f);
-        setRaw(result, "attack", 0.45f);
-        setRaw(result, "release", 1.5f);
     }
-    if (contains(text, "pluck") || contains(text, "plucked") || contains(text, "плик")
-        || contains(text, "щипк")) {
-        setRaw(result, "attack", 0.003f);
+    if (intent.pluck) {
         setRaw(result, "decay", 0.32f);
         setRaw(result, "sustain", 0.2f);
     }
-    if (contains(text, "metallic") || contains(text, "metal"))
+    if (intent.metallic)
         setRaw(result, "fmamount", 0.24f + complexity * 0.48f);
-    if (contains(text, "music box") || contains(text, "musicbox")
-        || contains(text, "шкатул")) {
+    if (intent.musicBox) {
         setRaw(result, "musicboxmix", 0.9f);
         setRaw(result, "musicboxbrightness", 0.78f);
         setRaw(result, "musicboxdecay", 1.8f);
@@ -259,25 +466,13 @@ std::vector<ParameterValue> SoundGenerator::createRecipe(
         setRaw(result, "musicboxinharmonicity", 0.82f);
         setRaw(result, "musicboxstrike", 0.62f);
     }
-    const auto aulosRequested = contains(text, "aulos") || contains(text, "reed pipe")
-                               || contains(text, "аулос");
-    const auto lyreRequested = contains(text, "lyre") || contains(text, "lyra")
-                               || contains(text, "лир");
-    const auto foundMetalRequested = contains(text, "found metal")
-                                    || contains(text, "scrap metal")
-                                    || contains(text, "металлолом")
-                                    || contains(text, "обломки металла");
-    const auto gongRequested = contains(text, "gong") || contains(text, "bronze")
-                               || contains(text, "гонг") || contains(text, "бронз")
-                               || contains(text, "odyssey") || contains(text, "одиссея")
-                               || contains(text, "ancient") || contains(text, "древн");
-    if (aulosRequested)
+    if (intent.aulos)
         ancientMode = 1;
-    else if (lyreRequested)
+    else if (intent.lyre)
         ancientMode = 2;
-    else if (foundMetalRequested)
+    else if (intent.foundMetal)
         ancientMode = 4;
-    else if (gongRequested)
+    else if (intent.gong)
         ancientMode = 3;
 
     setRaw(result, "filtercutoff", blend(260.0f, 11000.0f, brightness));
@@ -310,13 +505,23 @@ std::vector<ParameterValue> SoundGenerator::createRecipe(
     setRaw(result, "delaymix", space * 0.24f);
     setRaw(result, "attack", blend(0.004f, 0.7f, movement) * (1.0f - aggression * 0.8f));
     setRaw(result, "release", blend(0.12f, 2.2f, space));
+    if (intent.pad) {
+        setRaw(result, "attack", 0.45f);
+        setRaw(result, "release", 1.5f);
+    }
+    if (intent.pluck || intent.sharpAttack)
+        setRaw(result, "attack", 0.003f);
+    if (intent.longTail && !intent.shortRelease)
+        setRaw(result, "release", std::max(1.8f, blend(0.12f, 2.2f, space)));
+    if (intent.shortRelease)
+        setRaw(result, "release", 0.12f);
     if (ancientMode > 0) {
         setRaw(result, "ancientinstrument", static_cast<float>(ancientMode));
         setRaw(result, "ancientmix", 0.88f);
         setRaw(result, "ancientbrightness", blend(0.42f, 0.88f, brightness));
         setRaw(result, "ancientdecay", blend(2.2f, 12.0f, space));
         setRaw(result, "ancientair", blend(0.2f, 0.78f, complexity));
-        setRaw(result, "ancientdetune", aulosRequested ? 0.5f : 0.24f);
+        setRaw(result, "ancientdetune", intent.aulos ? 0.5f : 0.24f);
         setRaw(result, "osc1level", 0.12f);
         setRaw(result, "osc2level", 0.035f);
         setRaw(result, "osc3level", 0.02f);
