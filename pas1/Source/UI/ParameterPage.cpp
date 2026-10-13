@@ -2,9 +2,21 @@
 #include "Utf8Text.h"
 
 #include <algorithm>
+#include <cmath>
 #include <utility>
 
 namespace {
+int decimalPlacesForStep(double step) {
+    if (!std::isfinite(step) || step <= 0.0)
+        return 3;
+    for (int places = 0; places <= 6; ++places) {
+        const auto scaled = step * std::pow(10.0, places);
+        if (std::abs(scaled - std::round(scaled)) < 1.0e-5)
+            return places;
+    }
+    return 6;
+}
+
 juce::String parameterTooltip(const juce::String& id) {
     if (id == "ancientinstrument")
         return pas1::ui::utf8String("Выберите тембр древнего слоя. Значение «Выкл.» отключает его; чтобы услышать инструмент, увеличьте громкость слоя.");
@@ -18,6 +30,22 @@ juce::String parameterTooltip(const juce::String& id) {
         return pas1::ui::utf8String("Для аулоса добавляет воздушный шум, для лиры и металлических тембров меняет шум атаки.");
     if (id == "ancientdetune")
         return pas1::ui::utf8String("Расстройка между трубками аулоса. На лиру и гонг этот параметр не влияет.");
+    if (id == "macrobody")
+        return pas1::ui::utf8String("Меняет низкочастотную основу и немного затемняет звук. 50% — нейтральное положение.");
+    if (id == "macrobrightness")
+        return pas1::ui::utf8String("Одновременно смещает частоту среза фильтра и позицию волновой таблицы. 50% — нейтральное положение.");
+    if (id == "macromovement")
+        return pas1::ui::utf8String("Управляет глубиной LFO, маршрутов модуляции и расстройки унисона: 0% — вдвое меньше, 50% — без изменений, 100% — в 1,5 раза больше.");
+    if (id == "tuningoctave")
+        return pas1::ui::utf8String("Сдвигает все новые ноты на октавы вверх или вниз. Не меняет октаву отдельных осцилляторов.");
+    if (id == "transpose")
+        return pas1::ui::utf8String("Транспонирует все новые ноты с шагом в полутон. Положительное значение повышает строй.");
+    if (id == "masterfine")
+        return pas1::ui::utf8String("Общая тонкая настройка в центах: 100 центов равны одному полутону.");
+    if (id == "temperament")
+        return pas1::ui::utf8String("Выберите равномерный строй, чистый строй, Пифагорейский строй или 19-TET. Альтернативные строи настраиваются от выбранной тоники.");
+    if (id == "tuningroot")
+        return pas1::ui::utf8String("Тоника для чистого, Пифагорейского и 19-TET строя. В равномерном строе не влияет на высоту.");
     if (id == "musicboxmix")
         return pas1::ui::utf8String("Громкость слоя музыкальной шкатулки. 0 отключает его, увеличение ручки добавляет металлические обертоны.");
     if (id == "musicboxbrightness")
@@ -156,13 +184,8 @@ private:
                                                : juce::String{});
                 slider_.setDoubleClickReturnValue(
                     true, parameter->convertFrom0to1(parameter->getDefaultValue()));
-                if (id == "filtercutoff" || (id.startsWith("lfo") && id.endsWith("rate")))
-                    slider_.setNumDecimalPlacesToDisplay(0);
-                else if (id.endsWith("attack") || id.endsWith("decay")
-                         || id.endsWith("release") || id == "glidetime")
-                    slider_.setNumDecimalPlacesToDisplay(3);
-                else
-                    slider_.setNumDecimalPlacesToDisplay(2);
+                slider_.setNumDecimalPlacesToDisplay(
+                    decimalPlacesForStep(range.interval));
                 slider_.setColour(juce::Slider::trackColourId, theme_.accent);
                 slider_.setColour(juce::Slider::thumbColourId, theme_.text);
                 slider_.setColour(juce::Slider::textBoxTextColourId, theme_.text);
@@ -176,24 +199,51 @@ private:
             auto tooltip = parameterTooltip(id);
             if (tooltip.isEmpty())
                 tooltip = parameter->getName(64);
-            tooltip += pas1::ui::utf8String(" Заводское значение: ")
-                       + parameter->getText(parameter->getDefaultValue(), 8);
-            if (hasSlider)
-                tooltip += pas1::ui::utf8String(
-                    ". Двойной щелчок по ползунку возвращает это значение.");
-            label_.setTooltip(tooltip);
-            slider_.setTooltip(tooltip);
-            combo_.setTooltip(tooltip);
-            toggle_.setTooltip(tooltip);
+            tooltip += pas1::ui::utf8String("\nЗаводское значение: ")
+                       + parameter->getText(parameter->getDefaultValue(), 24);
             if (hasSlider) {
                 const auto range = parameter->getNormalisableRange();
-                auto rangeHint = pas1::ui::utf8String("Диапазон: ")
-                                 + juce::String{range.start, 2}
-                                 + pas1::ui::utf8String(" — ")
-                                 + juce::String{range.end, 2};
-                if (parameter->getLabel().isNotEmpty())
-                    rangeHint += " " + parameter->getLabel();
-                slider_.setTooltip(tooltip + " " + rangeHint + ".");
+                const auto rangeHint =
+                    pas1::ui::utf8String("\nДиапазон: ")
+                    + parameter->getText(parameter->convertTo0to1(range.start), 24)
+                    + pas1::ui::utf8String(" — ")
+                    + parameter->getText(parameter->convertTo0to1(range.end), 24);
+                tooltip += rangeHint
+                           + pas1::ui::utf8String(
+                               "\nВведите точное число в поле рядом с ползунком; двойной щелчок возвращает заводское.");
+                const auto updateTooltip = [this, tooltip] {
+                    const auto current = slider_.getTextFromValue(slider_.getValue());
+                    const auto currentTooltip =
+                        tooltip + pas1::ui::utf8String("\nСейчас: ") + current;
+                    slider_.setTooltip(currentTooltip);
+                    label_.setTooltip(currentTooltip);
+                };
+                slider_.onValueChange = updateTooltip;
+                updateTooltip();
+            } else if (combo_.getParentComponent() != nullptr) {
+                const auto updateTooltip = [this, parameter, tooltip] {
+                    const auto current = combo_.getText().isNotEmpty()
+                                             ? combo_.getText()
+                                             : parameter->getText(parameter->getValue(), 24);
+                    const auto currentTooltip =
+                        tooltip + pas1::ui::utf8String("\nВыбрано: ") + current;
+                    combo_.setTooltip(currentTooltip);
+                    label_.setTooltip(currentTooltip);
+                };
+                combo_.onChange = updateTooltip;
+                updateTooltip();
+            } else if (toggle_.getParentComponent() != nullptr) {
+                const auto updateTooltip = [this, tooltip] {
+                    const auto state = toggle_.getToggleState()
+                                           ? pas1::ui::utf8String("включено")
+                                           : pas1::ui::utf8String("выключено");
+                    const auto currentTooltip =
+                        tooltip + pas1::ui::utf8String("\nСостояние: ") + state;
+                    toggle_.setTooltip(currentTooltip);
+                    label_.setTooltip(currentTooltip);
+                };
+                toggle_.onClick = updateTooltip;
+                updateTooltip();
             }
         }
 

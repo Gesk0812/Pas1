@@ -17,6 +17,17 @@ const juce::Colour muted{0xffbba483};
 const juce::Colour brassTrim{0xff745332};
 const juce::Colour darkWood{0xff21130d};
 
+int decimalPlacesForStep(double step) {
+    if (!std::isfinite(step) || step <= 0.0)
+        return 3;
+    for (int places = 0; places <= 6; ++places) {
+        const auto scaled = step * std::pow(10.0, places);
+        if (std::abs(scaled - std::round(scaled)) < 1.0e-5)
+            return places;
+    }
+    return 6;
+}
+
 void styleSlider(juce::Slider& slider) {
     slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 76, 22);
@@ -32,6 +43,26 @@ void styleLabel(juce::Label& label, const juce::String& title) {
     label.setText(title, juce::dontSendNotification);
     label.setJustificationType(juce::Justification::centred);
     label.setColour(juce::Label::textColourId, muted);
+}
+
+void setParameterSliderHelp(juce::Slider& slider,
+                            juce::RangedAudioParameter* parameter,
+                            const juce::String& explanation) {
+    if (parameter == nullptr)
+        return;
+    const auto range = parameter->getNormalisableRange();
+    const auto minimumText = parameter->getText(parameter->convertTo0to1(range.start), 24);
+    const auto maximumText = parameter->getText(parameter->convertTo0to1(range.end), 24);
+    const auto help = explanation + pas1::ui::utf8String("\nДиапазон: ")
+                      + minimumText + " — " + maximumText
+                      + pas1::ui::utf8String(
+                          ". Точное значение можно ввести в поле под ручкой; двойной щелчок возвращает заводское.");
+    slider.onValueChange = [&slider, help] {
+        slider.setTooltip(help + pas1::ui::utf8String("\nСейчас: ")
+                          + slider.getTextFromValue(slider.getValue()));
+    };
+    slider.setTooltip(help + pas1::ui::utf8String("\nСейчас: ")
+                      + slider.getTextFromValue(slider.getValue()));
 }
 
 struct EnvelopePlot {
@@ -188,6 +219,9 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     settingsPage = makePage(pas1::ui::utf8String("НАСТРОЙКИ И ИСПОЛНЕНИЕ"), {
         {pas1::ui::utf8String("ГОЛОСА"), {"polyphony", "voicemode", "glideenabled", "glidetime"}},
         {pas1::ui::utf8String("ВЫХОД"), {"master", "limiterenabled", "limiterthreshold"}},
+        {pas1::ui::utf8String("МАКРОКРУТИЛКИ"), {"macrobody", "macrobrightness", "macromovement"}},
+        {pas1::ui::utf8String("ВЫСОТА И СТРОЙ"),
+         {"tuningoctave", "transpose", "masterfine", "temperament", "tuningroot"}},
         {pas1::ui::utf8String("АВТОМАТИЗАЦИЯ В ХОСТЕ"), {"morphx", "morphy"}}
     });
     pas1::diagnostics::startupTrace("editor.settingsPage.created");
@@ -331,13 +365,23 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
         styleSlider(*slider);
         addAndMakeVisible(*slider);
     }
+    for (auto* slider : {&macroBody, &macroBrightness, &macroMovement}) {
+        styleSlider(*slider);
+        slider->setNumDecimalPlacesToDisplay(1);
+        slider->setTextValueSuffix(" %");
+        addAndMakeVisible(*slider);
+    }
     styleLabel(attackLabel, pas1::ui::utf8String("АТАКА"));
     styleLabel(decayLabel, pas1::ui::utf8String("СПАД"));
     styleLabel(sustainLabel, pas1::ui::utf8String("УДЕРЖАНИЕ"));
     styleLabel(releaseLabel, pas1::ui::utf8String("ЗАТУХАНИЕ"));
     styleLabel(masterLabel, pas1::ui::utf8String("ГРОМКОСТЬ"));
     styleLabel(voicesLabel, pas1::ui::utf8String("ГОЛОСА"));
-    for (auto* label : {&attackLabel, &decayLabel, &sustainLabel, &releaseLabel, &masterLabel, &voicesLabel})
+    styleLabel(macroBodyLabel, pas1::ui::utf8String("ТЕЛО"));
+    styleLabel(macroBrightnessLabel, pas1::ui::utf8String("ЯРКОСТЬ"));
+    styleLabel(macroMovementLabel, pas1::ui::utf8String("ДВИЖЕНИЕ"));
+    for (auto* label : {&attackLabel, &decayLabel, &sustainLabel, &releaseLabel, &masterLabel, &voicesLabel,
+                        &macroBodyLabel, &macroBrightnessLabel, &macroMovementLabel})
         addAndMakeVisible(*label);
 
     voices.setNumDecimalPlacesToDisplay(0);
@@ -360,11 +404,14 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     auto& state = processor_.parameters;
     const auto setSliderDefault = [&state](const char* id, juce::Slider& slider) {
         if (auto* parameter = state.getParameter(id)) {
+            slider.setNumDecimalPlacesToDisplay(
+                decimalPlacesForStep(parameter->getNormalisableRange().interval));
             slider.setDoubleClickReturnValue(
                 true, parameter->convertFrom0to1(parameter->getDefaultValue()));
             slider.setTooltip(
                 slider.getTooltip()
                 + pas1::ui::utf8String(" Двойной щелчок возвращает заводское значение."));
+            setParameterSliderHelp(slider, parameter, parameter->getName(64));
         }
     };
     setSliderDefault("attack", attack);
@@ -374,6 +421,9 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     setSliderDefault("master", master);
     setSliderDefault("polyphony", voices);
     setSliderDefault("glidetime", glideTime);
+    setSliderDefault("macrobody", macroBody);
+    setSliderDefault("macrobrightness", macroBrightness);
+    setSliderDefault("macromovement", macroMovement);
     waveformAttachment = std::make_unique<ComboBoxAttachment>(state, "waveform", waveform);
     attackAttachment = std::make_unique<SliderAttachment>(state, "attack", attack);
     decayAttachment = std::make_unique<SliderAttachment>(state, "decay", decay);
@@ -381,6 +431,20 @@ Pas1AudioProcessorEditor::Pas1AudioProcessorEditor(Pas1AudioProcessor& processor
     releaseAttachment = std::make_unique<SliderAttachment>(state, "release", release);
     masterAttachment = std::make_unique<SliderAttachment>(state, "master", master);
     voicesAttachment = std::make_unique<SliderAttachment>(state, "polyphony", voices);
+    macroBodyAttachment = std::make_unique<SliderAttachment>(state, "macrobody", macroBody);
+    macroBrightnessAttachment =
+        std::make_unique<SliderAttachment>(state, "macrobrightness", macroBrightness);
+    macroMovementAttachment =
+        std::make_unique<SliderAttachment>(state, "macromovement", macroMovement);
+    setParameterSliderHelp(
+        macroBody, state.getParameter("macrobody"),
+        pas1::ui::utf8String("Добавляет низкочастотную основу и мягко затемняет тембр. 50% — без изменений."));
+    setParameterSliderHelp(
+        macroBrightness, state.getParameter("macrobrightness"),
+        pas1::ui::utf8String("Открывает фильтр и смещает тембр волновой таблицы к более ярким гармоникам. 50% — без изменений."));
+    setParameterSliderHelp(
+        macroMovement, state.getParameter("macromovement"),
+        pas1::ui::utf8String("Меняет глубину LFO, маршрутов модуляции и расстройки унисона: 0% — вдвое меньше, 50% — без изменений, 100% — в 1,5 раза больше."));
 
     voiceMode.addItemList({pas1::ui::utf8String("Полифония"), pas1::ui::utf8String("Монофония"), pas1::ui::utf8String("Легато")}, 1);
     voiceMode.setColour(juce::ComboBox::backgroundColourId, panel);
@@ -507,16 +571,25 @@ void Pas1AudioProcessorEditor::paint(juce::Graphics& graphics) {
     graphics.fillRoundedRectangle(30.0f, 120.0f, static_cast<float>(getWidth() - 60), 82.0f, 12.0f);
     graphics.fillRoundedRectangle(30.0f, 212.0f, static_cast<float>(getWidth() - 60), 176.0f, 12.0f);
     graphics.fillRoundedRectangle(30.0f, 398.0f, static_cast<float>(getWidth() - 60), 158.0f, 12.0f);
+    if (getHeight() >= 740)
+        graphics.fillRoundedRectangle(30.0f, 582.0f, static_cast<float>(getWidth() - 60),
+                                      136.0f, 12.0f);
     graphics.setColour(accent.withAlpha(0.24f));
     graphics.drawRoundedRectangle(30.5f, 120.5f, static_cast<float>(getWidth() - 61), 81.0f, 11.5f, 0.8f);
     graphics.drawRoundedRectangle(30.5f, 212.5f, static_cast<float>(getWidth() - 61), 175.0f, 11.5f, 0.8f);
     graphics.drawRoundedRectangle(30.5f, 398.5f, static_cast<float>(getWidth() - 61), 157.0f, 11.5f, 0.8f);
+    if (getHeight() >= 740)
+        graphics.drawRoundedRectangle(30.5f, 582.5f, static_cast<float>(getWidth() - 61),
+                                      135.0f, 11.5f, 0.8f);
 
     graphics.setColour(accent);
     graphics.setFont(juce::FontOptions{10.0f, juce::Font::bold});
     graphics.drawText(pas1::ui::utf8String("ИСТОЧНИК ЗВУКА"), 48, 130, 200, 16, juce::Justification::centredLeft);
     graphics.drawText(pas1::ui::utf8String("АМПЛИТУДНАЯ ОГИБАЮЩАЯ"), 48, 222, 250, 16, juce::Justification::centredLeft);
     graphics.drawText(pas1::ui::utf8String("ИСПОЛНЕНИЕ"), 48, 408, 100, 16, juce::Justification::centredLeft);
+    if (getHeight() >= 740)
+        graphics.drawText(pas1::ui::utf8String("МАКРОКРУТИЛКИ  /  50% — НЕЙТРАЛЬНО"),
+                          48, 590, 320, 16, juce::Justification::centredLeft);
 
     const auto readValue = [this](const char* id, float fallback) {
         if (const auto* value = processor_.parameters.getRawParameterValue(id))
@@ -830,6 +903,19 @@ void Pas1AudioProcessorEditor::resized() {
     glideTime.setBounds(304, 436, 210, 34);
     pas1::diagnostics::startupTrace("editor.resized.keyboard.before");
     keyboard.setBounds(48, 526, width - 96, 54);
+    macroBodyLabel.setBounds(56, 606, 104, 16);
+    macroBrightnessLabel.setBounds(184, 606, 104, 16);
+    macroMovementLabel.setBounds(312, 606, 104, 16);
+    macroBody.setBounds(53, 619, 110, 92);
+    macroBrightness.setBounds(181, 619, 110, 92);
+    macroMovement.setBounds(309, 619, 110, 92);
+    const auto showHomeMacros = currentPage == Page::home && getHeight() >= 740;
+    macroBody.setVisible(showHomeMacros);
+    macroBrightness.setVisible(showHomeMacros);
+    macroMovement.setVisible(showHomeMacros);
+    macroBodyLabel.setVisible(showHomeMacros);
+    macroBrightnessLabel.setVisible(showHomeMacros);
+    macroMovementLabel.setVisible(showHomeMacros);
     pas1::diagnostics::startupTrace("editor.resized.spectrumAnalyzer.before");
     spectrumAnalyzer->setBounds(540, 412, width - 594, 108);
     pas1::diagnostics::startupTrace("editor.resized.done");
@@ -844,6 +930,9 @@ void Pas1AudioProcessorEditor::setCoreControlsVisible(bool visible) {
                             static_cast<juce::Component*>(&release),
                             static_cast<juce::Component*>(&master),
                             static_cast<juce::Component*>(&voices),
+                            static_cast<juce::Component*>(&macroBody),
+                            static_cast<juce::Component*>(&macroBrightness),
+                            static_cast<juce::Component*>(&macroMovement),
                             static_cast<juce::Component*>(&voiceMode),
                             static_cast<juce::Component*>(&glideEnabled),
                             static_cast<juce::Component*>(&glideTime),
@@ -855,8 +944,18 @@ void Pas1AudioProcessorEditor::setCoreControlsVisible(bool visible) {
                             static_cast<juce::Component*>(&releaseLabel),
                             static_cast<juce::Component*>(&masterLabel),
                             static_cast<juce::Component*>(&voicesLabel),
+                            static_cast<juce::Component*>(&macroBodyLabel),
+                            static_cast<juce::Component*>(&macroBrightnessLabel),
+                            static_cast<juce::Component*>(&macroMovementLabel),
                             static_cast<juce::Component*>(&keyboard)})
         component->setVisible(visible);
+    const auto showMacros = visible && getHeight() >= 740;
+    macroBody.setVisible(showMacros);
+    macroBrightness.setVisible(showMacros);
+    macroMovement.setVisible(showMacros);
+    macroBodyLabel.setVisible(showMacros);
+    macroBrightnessLabel.setVisible(showMacros);
+    macroMovementLabel.setVisible(showMacros);
 }
 
 void Pas1AudioProcessorEditor::showPage(Page page) {

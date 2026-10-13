@@ -28,6 +28,10 @@ inline float brightnessFilterOctaves(float normalizedBrightness) noexcept {
     return (std::clamp(normalizedBrightness, 0.0f, 1.0f) - 0.5f) * 3.0f;
 }
 
+inline float brightnessWavetableOffset(float normalizedBrightness) noexcept {
+    return (std::clamp(normalizedBrightness, 0.0f, 1.0f) - 0.5f) * 0.36f;
+}
+
 inline float movementScale(float normalizedMovement) noexcept {
     return 0.5f + std::clamp(normalizedMovement, 0.0f, 1.0f);
 }

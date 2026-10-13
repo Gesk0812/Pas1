@@ -2,11 +2,13 @@
 
 #include "PluginEditor.h"
 #include "DSP/LowFrequencyOscillator.h"
+#include "DSP/MacroControls.h"
 #include "DSP/MetallicTine.h"
 #include "DSP/ModulationMatrix.h"
 #include "DSP/NotePriorityStack.h"
 #include "DSP/Portamento.h"
 #include "DSP/StateVariableFilter.h"
+#include "DSP/Tuning.h"
 #include "DSP/WavetableOscillator.h"
 #include "UI/Utf8Text.h"
 
@@ -103,6 +105,14 @@ struct EngineParameterPointers {
     std::atomic<float>* ancientDecay = nullptr;
     std::atomic<float>* ancientAir = nullptr;
     std::atomic<float>* ancientPipeDetune = nullptr;
+    std::atomic<float>* macroBody = nullptr;
+    std::atomic<float>* macroBrightness = nullptr;
+    std::atomic<float>* macroMovement = nullptr;
+    std::atomic<float>* tuningOctave = nullptr;
+    std::atomic<float>* transpose = nullptr;
+    std::atomic<float>* masterFineTune = nullptr;
+    std::atomic<float>* temperament = nullptr;
+    std::atomic<float>* tuningRoot = nullptr;
     std::atomic<float>* filterType = nullptr;
     std::atomic<float>* filterCutoff = nullptr;
     std::atomic<float>* filterResonance = nullptr;
@@ -169,8 +179,15 @@ public:
         const auto wasMonoTransition = monoStealPending_;
         monoStealPending_ = false;
         legatoForNextNote_ = false;
-        const auto targetFrequency =
-            static_cast<float>(juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber));
+        const auto tunedFrequency = pas1::dsp::tunedMidiFrequency(
+            midiNoteNumber,
+            static_cast<int>(std::round(engineParameters_.tuningOctave->load())),
+            static_cast<int>(std::round(engineParameters_.transpose->load())),
+            engineParameters_.masterFineTune->load(),
+            static_cast<int>(std::round(engineParameters_.temperament->load())),
+            static_cast<int>(std::round(engineParameters_.tuningRoot->load())));
+        const auto targetFrequency = std::clamp(
+            tunedFrequency, 1.0f, static_cast<float>(std::max(20.0, currentSampleRate_ * 0.45)));
         const auto glideSeconds = glideTime_->load();
         if (mode != 0 && wasMonoTransition && glideEnabled_->load() >= 0.5f
             && std::isfinite(glideSeconds) && glideSeconds > 0.0f) {
@@ -290,14 +307,26 @@ public:
         const auto oscillator1PitchRatio = std::pow(
             2.0f, engineParameters_.oscillator1Octave->load()
                       + engineParameters_.oscillator1Fine->load() / 100.0f);
-        const auto wavetableScan = engineParameters_.wavetableScan->load();
+        const auto wavetableScan = std::clamp(
+            engineParameters_.wavetableScan->load()
+                + pas1::dsp::macro::brightnessWavetableOffset(macroBrightness),
+            0.0f, 1.0f);
         const auto unisonVoices = std::clamp(
             static_cast<int>(std::round(engineParameters_.unisonVoices->load())), 1, 7);
-        const auto unisonDetune = engineParameters_.unisonDetune->load();
-        const auto osc2BaseLevel = engineParameters_.oscillator2Level->load();
+        const auto macroBody = pas1::dsp::macro::normalizePercent(
+            engineParameters_.macroBody->load());
+        const auto macroBrightness = pas1::dsp::macro::normalizePercent(
+            engineParameters_.macroBrightness->load());
+        const auto macroMovementScale = pas1::dsp::macro::movementScale(
+            pas1::dsp::macro::normalizePercent(engineParameters_.macroMovement->load()));
+        const auto osc2BaseLevel = pas1::dsp::macro::bodyOscillatorLevel(
+            engineParameters_.oscillator2Level->load(), macroBody);
         const auto osc3Level = engineParameters_.oscillator3Level->load();
         const auto pulseWidth = engineParameters_.pulseWidth->load();
-        const auto subLevel = engineParameters_.subLevel->load();
+        const auto subLevel = pas1::dsp::macro::bodySubLevel(
+            engineParameters_.subLevel->load(), macroBody);
+        const auto effectiveUnisonDetune = std::clamp(
+            engineParameters_.unisonDetune->load() * macroMovementScale, 0.0f, 100.0f);
         const auto noiseLevel = engineParameters_.noiseLevel->load();
         const auto musicBoxMix = std::clamp(engineParameters_.musicBoxMix->load(), 0.0f, 1.0f);
         const auto ancientMode = std::clamp(
@@ -328,7 +357,7 @@ public:
             const auto& source = engineParameters_.lfos[index];
             lfoSettings[index] = {
                 source.rate->load(),
-                source.amount->load(),
+                std::clamp(source.amount->load() * macroMovementScale, 0.0f, 1.0f),
                 std::clamp(static_cast<int>(std::round(source.waveform->load())), 0, 5),
                 std::clamp(static_cast<int>(std::round(source.destination->load())), 0, 4),
                 source.sync->load() >= 0.5f,
@@ -348,7 +377,8 @@ public:
             route.destination = static_cast<pas1::dsp::ModulationDestination>(std::clamp(
                 static_cast<int>(std::round(routeParameters.destination->load())),
                 0, static_cast<int>(pas1::dsp::ModulationMatrix::destinationCount) - 1));
-            route.amount = routeParameters.amount->load();
+            route.amount = std::clamp(
+                routeParameters.amount->load() * macroMovementScale, -1.0f, 1.0f);
             route.polarity = routeParameters.polarity->load() >= 0.5f
                                  ? pas1::dsp::ModulationPolarity::unipolar
                                  : pas1::dsp::ModulationPolarity::bipolar;
@@ -360,7 +390,8 @@ public:
 
         for (int sample = 0; sample < numSamples; ++sample) {
             auto pitchModulation = std::sin(vibratoPhase_) * modWheel_ * 0.5f;
-            auto cutoffOctaves = 0.0f;
+            auto cutoffOctaves = pas1::dsp::macro::bodyFilterOctaves(macroBody)
+                                 + pas1::dsp::macro::brightnessFilterOctaves(macroBrightness);
             auto oscillator2Level = osc2BaseLevel;
             auto amplitudeLfoGain = 1.0f;
             pas1::dsp::ModulationMatrix::SourceValues modulationSources{};
@@ -450,7 +481,9 @@ public:
                                                    / static_cast<float>(unisonVoices - 1))
                                                       - 1.0f;
                 const auto unisonFrequency = oscillator1Frequency
-                                             * std::pow(2.0f, detunePosition * unisonDetune / 1200.0f);
+                                              * std::pow(2.0f, detunePosition
+                                                                 * effectiveUnisonDetune
+                                                                 / 1200.0f);
                 oscillator1Sample += unisonOscillators_[static_cast<std::size_t>(unisonIndex)].nextSample(
                     unisonFrequency, static_cast<float>(sampleRate), waveform, modulatedWavetableScan);
             }
@@ -1101,6 +1134,33 @@ juce::AudioProcessorValueTreeState::ParameterLayout Pas1AudioProcessor::createPa
     layout.add(std::make_unique<Parameter>(
         juce::ParameterID{"master", 1}, "Общая громкость",
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.75f));
+    layout.add(std::make_unique<Parameter>(
+        juce::ParameterID{"macrobody", 1}, "Макро — Тело",
+        juce::NormalisableRange<float>{0.0f, 100.0f, 0.1f}, 50.0f, "%"));
+    layout.add(std::make_unique<Parameter>(
+        juce::ParameterID{"macrobrightness", 1}, "Макро — Яркость",
+        juce::NormalisableRange<float>{0.0f, 100.0f, 0.1f}, 50.0f, "%"));
+    layout.add(std::make_unique<Parameter>(
+        juce::ParameterID{"macromovement", 1}, "Макро — Движение",
+        juce::NormalisableRange<float>{0.0f, 100.0f, 0.1f}, 50.0f, "%"));
+    layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterInt>>(
+        juce::ParameterID{"tuningoctave", 1}, "Глобальный сдвиг октавы", -3, 3, 0));
+    layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterInt>>(
+        juce::ParameterID{"transpose", 1}, "Транспонирование", -24, 24, 0));
+    layout.add(std::make_unique<Parameter>(
+        juce::ParameterID{"masterfine", 1}, "Точная настройка",
+        juce::NormalisableRange<float>{-100.0f, 100.0f, 0.1f}, 0.0f,
+        pas1::ui::utf8String(" центов")));
+    layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterChoice>>(
+        juce::ParameterID{"temperament", 1}, "Строй",
+        pas1::ui::utf8StringArray(
+            {"Равномерный (12-TET)", "Чистый", "Пифагорейский", "19-TET"}),
+        0));
+    layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterChoice>>(
+        juce::ParameterID{"tuningroot", 1}, "Тоника строя",
+        pas1::ui::utf8StringArray(
+            {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}),
+        0));
     layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterInt>>(
         juce::ParameterID{"polyphony", 1}, "Число нот", 1, kMaximumVoices, 16));
     layout.add(std::make_unique<Utf8NamedParameter<juce::AudioParameterChoice>>(
@@ -1257,6 +1317,14 @@ Pas1AudioProcessor::Pas1AudioProcessor()
     engineParameters.ancientDecay = parameters.getRawParameterValue("ancientdecay");
     engineParameters.ancientAir = parameters.getRawParameterValue("ancientair");
     engineParameters.ancientPipeDetune = parameters.getRawParameterValue("ancientdetune");
+    engineParameters.macroBody = parameters.getRawParameterValue("macrobody");
+    engineParameters.macroBrightness = parameters.getRawParameterValue("macrobrightness");
+    engineParameters.macroMovement = parameters.getRawParameterValue("macromovement");
+    engineParameters.tuningOctave = parameters.getRawParameterValue("tuningoctave");
+    engineParameters.transpose = parameters.getRawParameterValue("transpose");
+    engineParameters.masterFineTune = parameters.getRawParameterValue("masterfine");
+    engineParameters.temperament = parameters.getRawParameterValue("temperament");
+    engineParameters.tuningRoot = parameters.getRawParameterValue("tuningroot");
     engineParameters.filterType = parameters.getRawParameterValue("filtertype");
     engineParameters.filterCutoff = &morphValues[static_cast<std::size_t>(pas1::dsp::MorphParameter::filterCutoff)];
     engineParameters.filterResonance = &morphValues[static_cast<std::size_t>(pas1::dsp::MorphParameter::filterResonance)];
@@ -1537,7 +1605,7 @@ juce::AudioProcessorEditor* Pas1AudioProcessor::createEditor() {
 void Pas1AudioProcessor::getStateInformation(juce::MemoryBlock& destinationData) {
     auto state = parameters.copyState();
     writeMorphState(state);
-    state.setProperty("stateVersion", 9, nullptr);
+    state.setProperty("stateVersion", 10, nullptr);
     if (const auto xml = state.createXml())
         copyXmlToBinary(*xml, destinationData);
 }
@@ -1546,11 +1614,13 @@ void Pas1AudioProcessor::setStateInformation(const void* data, int sizeInBytes) 
     if (const auto xml = getXmlFromBinary(data, sizeInBytes)) {
         if (xml->hasTagName(parameters.state.getType())) {
             auto restoredState = juce::ValueTree::fromXml(*xml);
-            constexpr std::array<const char*, 12> newParameterIds{
+            constexpr std::array<const char*, 20> newParameterIds{
                 "musicboxmix", "musicboxbrightness", "musicboxdecay",
                 "musicboxresonance", "musicboxinharmonicity", "musicboxstrike",
                 "ancientinstrument", "ancientmix", "ancientbrightness",
-                "ancientdecay", "ancientair", "ancientdetune"};
+                "ancientdecay", "ancientair", "ancientdetune",
+                "macrobody", "macrobrightness", "macromovement",
+                "tuningoctave", "transpose", "masterfine", "temperament", "tuningroot"};
             for (const auto* parameterId : newParameterIds) {
                 const juce::String id{parameterId};
                 if (restoredState.getChildWithProperty("id", id).isValid())
@@ -1562,7 +1632,7 @@ void Pas1AudioProcessor::setStateInformation(const void* data, int sizeInBytes) 
                     continue;
                 auto migratedParameterState = currentParameterState.createCopy();
                 migratedParameterState.setProperty(
-                    "value", parameter->getDefaultValue(), nullptr);
+                    "value", parameter->convertFrom0to1(parameter->getDefaultValue()), nullptr);
                 restoredState.addChild(migratedParameterState, -1, nullptr);
             }
             const auto previousStateVersion =
@@ -1578,7 +1648,7 @@ void Pas1AudioProcessor::setStateInformation(const void* data, int sizeInBytes) 
                                      legacyResonance), nullptr);
                 }
             }
-            restoredState.setProperty("stateVersion", 9, nullptr);
+            restoredState.setProperty("stateVersion", 10, nullptr);
             parameters.replaceState(restoredState);
             readMorphState(parameters.state);
         }

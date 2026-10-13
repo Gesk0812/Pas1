@@ -612,6 +612,10 @@ void testTuning() {
     expect(std::abs(pas1::dsp::tunedMidiFrequency(62, 0, 0, 0.0f, just, 2)
                     - pas1::dsp::tunedMidiFrequency(62, 0, 0, 0.0f, equal, 0)) < 0.01f,
            "the selected root must remain in tune with equal temperament");
+    expect(std::abs(pas1::dsp::temperamentRatio(
+                        61, static_cast<int>(Temperament::nineteenToneEqual), 0)
+                    - 1.0f) > 0.001f,
+           "19-TET must produce an alternate interval rather than equal temperament");
     expect(pas1::dsp::temperamentRatio(60, 99, 0) == 1.0f,
            "unknown temperament values must safely fall back to equal temperament");
     expect(std::isfinite(pas1::dsp::tunedMidiFrequency(
@@ -627,6 +631,7 @@ void testMacroControls() {
                && bodyOscillatorLevel(0.4f, 0.5f) == 0.4f
                && bodyFilterOctaves(0.5f) == 0.0f
                && brightnessFilterOctaves(0.5f) == 0.0f
+               && brightnessWavetableOffset(0.5f) == 0.0f
                && movementScale(0.5f) == 1.0f,
            "centered macros must preserve the original sound");
     expect(bodySubLevel(0.2f, 1.0f) > bodySubLevel(0.2f, 0.0f)
@@ -634,6 +639,8 @@ void testMacroControls() {
            "Body must increase low-frequency sources and gently darken the sound");
     expect(brightnessFilterOctaves(1.0f) > brightnessFilterOctaves(0.0f),
            "Brightness must move the filter cutoff across its range");
+    expect(brightnessWavetableOffset(1.0f) > brightnessWavetableOffset(0.0f),
+           "Brightness must also scan the wavetable toward brighter harmonics");
     expect(movementScale(1.0f) > movementScale(0.0f),
            "Movement must scale modulation and detune depth");
 }

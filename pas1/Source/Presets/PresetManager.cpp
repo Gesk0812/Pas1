@@ -5,6 +5,7 @@
 #include "../DSP/StateVariableFilter.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <iterator>
 #include <utility>
@@ -965,6 +966,28 @@ bool PresetManager::loadPreset(const juce::File& file, juce::String& error) {
     if (!readPresetDocument(file, state, name, category, error))
         return false;
 
+    constexpr std::array<const char*, 20> parametersAddedSinceInitialRelease{
+        "musicboxmix", "musicboxbrightness", "musicboxdecay",
+        "musicboxresonance", "musicboxinharmonicity", "musicboxstrike",
+        "ancientinstrument", "ancientmix", "ancientbrightness",
+        "ancientdecay", "ancientair", "ancientdetune",
+        "macrobody", "macrobrightness", "macromovement",
+        "tuningoctave", "transpose", "masterfine", "temperament", "tuningroot"};
+    for (const auto* parameterId : parametersAddedSinceInitialRelease) {
+        const juce::String id{parameterId};
+        if (state.getChildWithProperty("id", id).isValid())
+            continue;
+        auto* parameter = parameters_.getParameter(id);
+        const auto currentParameterState =
+            parameters_.state.getChildWithProperty("id", id);
+        if (parameter == nullptr || !currentParameterState.isValid())
+            continue;
+        auto migratedParameterState = currentParameterState.createCopy();
+        migratedParameterState.setProperty(
+            "value", parameter->convertFrom0to1(parameter->getDefaultValue()), nullptr);
+        state.addChild(migratedParameterState, -1, nullptr);
+    }
+
     const auto stateVersion = static_cast<int>(state.getProperty("stateVersion", 0));
     if (stateVersion < 9) {
         auto resonanceState = state.getChildWithProperty("id", "filterresonance");
@@ -975,7 +998,7 @@ bool PresetManager::loadPreset(const juce::File& file, juce::String& error) {
                              legacyResonance), nullptr);
         }
     }
-    state.setProperty("stateVersion", 9, nullptr);
+    state.setProperty("stateVersion", 10, nullptr);
     parameters_.replaceState(state);
     if (stateLoadedCallback_)
         stateLoadedCallback_();
@@ -1019,7 +1042,7 @@ bool PresetManager::makePresetDocumentFromState(const juce::ValueTree& sourceSta
                                                juce::String& document,
                                                juce::String& error) const {
     auto state = sourceState.createCopy();
-    state.setProperty("stateVersion", 9, nullptr);
+    state.setProperty("stateVersion", 10, nullptr);
     const auto xml = state.createXml();
     if (xml == nullptr) {
         error = pas1::ui::utf8String("Не удалось сохранить текущее состояние синтезатора.");

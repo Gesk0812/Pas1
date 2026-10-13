@@ -108,6 +108,9 @@ private:
     juce::Slider release;
     juce::Slider master;
     juce::Slider voices;
+    juce::Slider macroBody;
+    juce::Slider macroBrightness;
+    juce::Slider macroMovement;
     juce::ComboBox voiceMode;
     juce::ToggleButton glideEnabled{pas1::ui::utf8String("ГЛИССАНДО")};
     juce::Slider glideTime;
@@ -117,6 +120,9 @@ private:
     juce::Label releaseLabel;
     juce::Label masterLabel;
     juce::Label voicesLabel;
+    juce::Label macroBodyLabel;
+    juce::Label macroBrightnessLabel;
+    juce::Label macroMovementLabel;
     juce::Label voiceModeLabel;
     juce::Label glideTimeLabel;
     juce::MidiKeyboardComponent keyboard;
@@ -129,6 +135,9 @@ private:
     std::unique_ptr<SliderAttachment> releaseAttachment;
     std::unique_ptr<SliderAttachment> masterAttachment;
     std::unique_ptr<SliderAttachment> voicesAttachment;
+    std::unique_ptr<SliderAttachment> macroBodyAttachment;
+    std::unique_ptr<SliderAttachment> macroBrightnessAttachment;
+    std::unique_ptr<SliderAttachment> macroMovementAttachment;
     std::unique_ptr<ComboBoxAttachment> voiceModeAttachment;
     std::unique_ptr<ButtonAttachment> glideEnabledAttachment;
     std::unique_ptr<SliderAttachment> glideTimeAttachment;
