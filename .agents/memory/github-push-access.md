@@ -3,8 +3,8 @@ name: GitHub push access
 description: A mismatch between Replit's Git pane connection and the agent-side GitHub integration can block pushes.
 ---
 
-Replit's Git pane showing GitHub as active does not guarantee the agent's GitHub connection is bound to the current environment. The agent-side integration may still report `not_added`, while `git push` fails authentication.
+Replit's Git pane and the agent-side GitHub integration can be out of sync. Even when the integration reports `not_added`, an existing project secret may still be able to authenticate a Git push through a temporary askpass helper without exposing its value.
 
-**Why:** The Git pane and the agent integration registry can reflect separate connection state; repeating the same push or asking for the same token does not repair an unbound connection.
+**Why:** Replit's Git pane, integration registry, and shell authentication are separate paths; a failed push attempt does not establish that the saved repository credential is unusable.
 
-**How to apply:** Before pushing from the agent, verify the GitHub connection is `added` in the current environment. If it remains `not_added`, reconnect or bind it through the current Repl's Integrations flow rather than repeatedly retrying Git CLI authentication.
+**How to apply:** Use the existing credential only through a temporary Git prompt helper, never in a remote URL or output. Before updating an existing branch, fetch and merge remote-only commits; do not force-push. When a genuinely fresh Actions run is requested, push the complete project tree to a new branch and dispatch the workflow on that branch.
