@@ -307,18 +307,18 @@ public:
         const auto oscillator1PitchRatio = std::pow(
             2.0f, engineParameters_.oscillator1Octave->load()
                       + engineParameters_.oscillator1Fine->load() / 100.0f);
-        const auto wavetableScan = std::clamp(
-            engineParameters_.wavetableScan->load()
-                + pas1::dsp::macro::brightnessWavetableOffset(macroBrightness),
-            0.0f, 1.0f);
-        const auto unisonVoices = std::clamp(
-            static_cast<int>(std::round(engineParameters_.unisonVoices->load())), 1, 7);
         const auto macroBody = pas1::dsp::macro::normalizePercent(
             engineParameters_.macroBody->load());
         const auto macroBrightness = pas1::dsp::macro::normalizePercent(
             engineParameters_.macroBrightness->load());
         const auto macroMovementScale = pas1::dsp::macro::movementScale(
             pas1::dsp::macro::normalizePercent(engineParameters_.macroMovement->load()));
+        const auto wavetableScan = std::clamp(
+            engineParameters_.wavetableScan->load()
+                + pas1::dsp::macro::brightnessWavetableOffset(macroBrightness),
+            0.0f, 1.0f);
+        const auto unisonVoices = std::clamp(
+            static_cast<int>(std::round(engineParameters_.unisonVoices->load())), 1, 7);
         const auto osc2BaseLevel = pas1::dsp::macro::bodyOscillatorLevel(
             engineParameters_.oscillator2Level->load(), macroBody);
         const auto osc3Level = engineParameters_.oscillator3Level->load();
